@@ -1,0 +1,61 @@
+{
+	"name": "sad-rbpl",
+	"private": true,
+	"version": "1.0.0",
+	"description": "Full-stack monorepo for managing diesel machine booking and project allocation for Sumber Anugrah Diesel (SAD).",
+	"scripts": {
+		"dev:admin": "turbo run dev --filter=web-admin",
+		"dev:manager": "turbo run dev --filter=web-manager",
+		"dev:user": "turbo run dev --filter=web-user",
+		"dev:backend": "turbo run dev --filter=api",
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"lint": "turbo run lint",
+		"typecheck": "turbo run typecheck",
+		"format": "prettier --write \"**/*.{ts,tsx,md}\""
+	},
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"devDependencies": {
+		"prettier": "^3.2.5",
+		"turbo": "^2.8.7",
+		"typescript": "^5.3.3"
+	},
+	"volta": {
+		"node": "20.19.1",
+		"pnpm": "10.7.1"
+	},
+	"engines": {
+		"node": ">=20.19.1",
+		"pnpm": ">=10.7.1"
+	},
+	"tasks": {
+		"dev": {
+			"cache": false
+		},
+		"build": {
+			"dependsOn": [
+				"^build"
+			],
+			"outputs": [
+				"dist/**",
+				".next/**"
+			]
+		},
+		"typecheck": {},
+		"lint": {}
+	},
+	"pnpm": {
+		"overrides": {
+			"@types/react": "19.2.14",
+			"@types/react-dom": "19.2.3"
+		},
+		"onlyBuiltDependencies": [
+			"@parcel/watcher",
+			"sharp"
+		]
+	},
+	"packageManager": "pnpm@10.7.1"
+}
