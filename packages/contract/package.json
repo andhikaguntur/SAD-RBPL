@@ -1,5 +1,5 @@
 {
-  "name": "@contract",
+  "name": "contract",
   "version": "1.0.0",
   "description": "Shared contracts and schemas",
   "main": "dist/index.js",

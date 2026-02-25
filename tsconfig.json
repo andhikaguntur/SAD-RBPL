@@ -13,13 +13,13 @@
 		"declaration": true,
 		"declarationMap": true,
 		"paths": {
-			"@shared/*": ["packages/shared/src/*"],
+			"@domain/*": ["packages/domain/src/*"],
 			"@contract/*": ["packages/contract/dist/*"]
 		}
 	},
 	"files": [],
 	"references": [
-		{ "path": "packages/shared" },
+		{ "path": "packages/contract" },
 		{ "path": "apps/api" },
 		{ "path": "apps/web-admin" },
 		{ "path": "apps/web-manager" },
