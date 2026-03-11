@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
   TextInput, Card, ThemeIcon, Drawer, Select, 
-  Container, SegmentedControl, Table, Divider, LoadingOverlay
+  Container, SegmentedControl, Table, Divider, LoadingOverlay, Alert
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -15,14 +15,6 @@ import {
   IconHistory
 } from '@tabler/icons-react';
 
-// Data Mockup
-const INITIAL_MACHINES = [
-  { id: 'MSN-501', model: 'Genset Perkins', cap: '50kVA', status: 'Tersedia', location: 'Gudang Utama', lastService: '2026-01-10', customer: null },
-  { id: 'MSN-502', model: 'Genset Perkins', cap: '50kVA', status: 'Disewa', location: 'Site Sleman', lastService: '2025-12-12', customer: 'PT. Maju Jaya' },
-  { id: 'MSN-101', model: 'Genset Cummins', cap: '100kVA', status: 'Perbaikan', location: 'Bengkel Pusat', lastService: '2026-02-15', customer: null },
-  { id: 'MSN-102', model: 'Genset Cummins', cap: '100kVA', status: 'Dipesan', location: 'Gudang Utama', lastService: '2026-02-01', customer: 'CV. Bangun Pagi' },
-];
-
 export default function FleetInventorySAD() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
@@ -30,22 +22,51 @@ export default function FleetInventorySAD() {
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
+  const [machines, setMachines] = useState<any[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch machines on mount
+  useEffect(() => {
+    const fetchMachines = async () => {
+      try {
+        setIsInitialLoading(true);
+        setError(null);
+        const response = await fetch('http://localhost:4000/api/machines');
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setMachines(result.data || []);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load machines';
+        setError(errorMsg);
+        console.error('Fetch error:', err);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    fetchMachines();
+  }, []);
 
   // Logic: Filtering
   const filteredData = useMemo(() => {
-    return INITIAL_MACHINES.filter(m => {
+    return machines.filter(m => {
       const matchSearch = m.id.toLowerCase().includes(search.toLowerCase()) || m.model.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filter === 'Semua' || m.status === filter;
       return matchSearch && matchStatus;
     });
-  }, [search, filter]);
+  }, [search, filter, machines]);
 
   // Statistik (Flat Design - Non Interactive)
   const stats = {
-    total: INITIAL_MACHINES.length,
-    avail: INITIAL_MACHINES.filter(m => m.status === 'Tersedia').length,
-    rented: INITIAL_MACHINES.filter(m => m.status === 'Disewa').length,
-    fix: INITIAL_MACHINES.filter(m => m.status === 'Perbaikan').length,
+    total: machines.length,
+    avail: machines.filter(m => m.status === 'Tersedia').length,
+    rented: machines.filter(m => m.status === 'Disewa').length,
+    fix: machines.filter(m => m.status === 'Perbaikan').length,
   };
 
   const handleManageUnit = (unit: any) => {
@@ -54,22 +75,60 @@ export default function FleetInventorySAD() {
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedUnit) return;
+    
     setLoading(true);
-    await new Promise(res => setTimeout(res, 800)); // Simulasi API
-    notifications.show({
-      title: 'Status Diperbarui',
-      message: `Unit ${selectedUnit.id} sekarang berstatus ${newStatus}.`,
-      color: 'blue',
-      icon: <IconCircleCheck size={18} />
-    });
-    setLoading(false);
-    closeDrawer();
+    try {
+      const response = await fetch(`http://localhost:4000/api/machines/${selectedUnit.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Update local state
+      setMachines(machines.map(m => 
+        m.id === selectedUnit.id ? { ...m, status: newStatus } : m
+      ));
+
+      notifications.show({
+        title: 'Status Diperbarui',
+        message: `Unit ${selectedUnit.id} sekarang berstatus ${newStatus}.`,
+        color: 'blue',
+        icon: <IconCircleCheck size={18} />
+      });
+      closeDrawer();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update status';
+      notifications.show({
+        title: 'Error',
+        message: errorMsg,
+        color: 'red',
+        icon: <IconAlertCircle size={18} />
+      });
+      console.error('Update error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
         
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
+
         {/* --- 1. HEADER & EXPORT --- */}
         <Group justify="space-between" align="center">
           <Box>

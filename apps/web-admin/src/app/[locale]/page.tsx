@@ -1,19 +1,149 @@
 'use client'
 
-import { useState } from 'react';
-import { 
-  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
-  ThemeIcon, Container, Divider, Table, Progress, Avatar, 
-  ActionIcon, Menu, ScrollArea, Select
+import { useState, useEffect } from 'react';
+import { notifications } from '@mantine/notifications';
+import {
+  Container, Stack, Group, Box, Title, Text, Paper, SimpleGrid, Button, Select,
+  Table, Progress, Badge, ActionIcon, ThemeIcon, Avatar, Divider,
+  LoadingOverlay, Modal, TextInput, Textarea, NumberInput, FileInput,
+  Menu, ScrollArea, Skeleton
 } from '@mantine/core';
-import { 
-  IconCash, IconTruckDelivery, IconAlertCircle, IconArrowUpRight, 
-  IconArrowDownRight, IconDotsVertical, IconEngine, IconCalendarStats,
-  IconPlus, IconFileAnalytics, IconMessageReport, IconCircleCheck
+import {
+  ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis,
+  Tooltip, Area
+} from 'recharts';
+import {
+  IconPlus, IconCash, IconTruckDelivery, IconAlertCircle, IconEngine,
+  IconDotsVertical, IconArrowUpRight, IconArrowDownRight,
+  IconCalendarStats, IconFileAnalytics, IconMessageReport, IconCircleCheck
 } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+
+// --- TYPE DEFINITIONS ---
+export type Transaction = {
+  id: string;
+  name: string;
+  val: string;
+  status: string;
+  color: string;
+};
+
+export type RevenueData = {
+  month: string;
+  total: number;
+};
+
+export type FleetData = {
+  label: string;
+  value: number;
+  color: string;
+  count: string;
+};
+
+export type DashboardData = {
+  kpi: {
+    revenue: string;
+    revenueTrend: string;
+    activeUnits: string;
+    activeTrend: string;
+    waitingValidation: string;
+    readyToShip: string;
+  };
+  fleet: FleetData[];
+  transactions: Transaction[];
+  revenueChart: RevenueData[];
+};
+
+export function useAdminDashboard() {
+  const [period, setPeriod] = useState<string | null>('7d');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 1. FETCH DATA LOGIC (GET)
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch(`http://localhost:4000/api/dashboard?period=${period}`);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setDashboardData(result.data || result);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load dashboard data';
+        setError(errorMsg);
+        console.error('Dashboard fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [period]);
+
+  // 2. SUBMIT DATA LOGIC (POST)
+  const submitPermintaan = async (formData: any, onSuccess: () => void) => {
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('http://localhost:4000/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Request submitted successfully:', result);
+      onSuccess();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to submit request';
+      setError(errorMsg);
+      console.error('Submit error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return {
+    period,
+    setPeriod,
+    isLoading,
+    dashboardData,
+    isSubmitting,
+    error,
+    submitPermintaan
+  };
+}
 
 export default function SADAdminDashboard() {
-  const [period, setPeriod] = useState<string | null>('7d');
+  // --- INTEGRASI BACKEND ---
+  const { 
+    period, setPeriod, isLoading, dashboardData, isSubmitting, error, submitPermintaan 
+  } = useAdminDashboard();
+  
+  // --- STATE UI ---
+  const [opened, { open, close }] = useDisclosure(false);
+  const [formData, setFormData] = useState({ clientName: '', unitType: '', duration: 1, location: '' });
+
+  // --- HANDLER ---
+  const handleFormSubmit = () => {
+    submitPermintaan(formData, () => {
+      setFormData({ clientName: '', unitType: '', duration: 1, location: '' });
+      close();
+    });
+  };
 
   return (
     <Container size="100%" p="xl" bg="#fcfcfc">
@@ -68,13 +198,52 @@ export default function SADAdminDashboard() {
               </Box>
               <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={18}/></ActionIcon>
             </Group>
-            {/* Visualisasi pengganti Chart */}
-            <Box h={250} bg="gray.0" style={{ borderRadius: '8px', border: '2px dashed #dee2e6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack align="center" gap={4}>
-                    <IconFileAnalytics size={40} color="#adb5bd" stroke={1} />
-                    <Text c="dimmed" size="xs">Integrasi Grafik Penjualan (Recharts/ApexCharts)</Text>
-                </Stack>
-            </Box>
+            
+            <Skeleton visible={isLoading}>
+              <Box h={280}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={dashboardData?.revenueChart || []}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--mantine-color-blue-6)" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="var(--mantine-color-blue-6)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef" />
+                    <XAxis 
+                      dataKey="month" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#868e96', fontWeight: 600 }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#868e96', fontWeight: 600 }} 
+                      tickFormatter={(value: number) => `${value}M`} 
+                    />
+                    <Tooltip 
+                      // formatter={(value: number) => [`Rp ${value} Juta`, 'Pendapatan']}
+                      labelStyle={{ fontWeight: 800, color: '#495057', marginBottom: '4px' }}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #dee2e6', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke="var(--mantine-color-blue-6)" 
+                      strokeWidth={3} 
+                      fillOpacity={1} 
+                      fill="url(#colorRevenue)" 
+                      activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--mantine-color-blue-8)' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Box>
+            </Skeleton>
           </Paper>
 
           {/* --- 4. FLEET UTILIZATION --- */}

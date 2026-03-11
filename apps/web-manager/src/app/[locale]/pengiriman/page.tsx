@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Group, Text, Title, Paper, Stack, Box, Badge, Button, 
   TextInput, Divider, ScrollArea, ThemeIcon, FileInput,
@@ -14,22 +14,48 @@ import {
   IconCheck, IconSearch, IconForms, IconEngine,
   IconPrinter, IconClock, IconAlertCircle
 } from '@tabler/icons-react';
-
-// Mockup data antrean (Order yang sudah lunas)
-const QUEUE_DATA = [
-  { id: 'ORD-501', client: 'PT. Maju Jaya', time: '2h ago', units: ['MSN-001 (50kVA)', 'MSN-002 (50kVA)'], status: 'Priority' },
-  { id: 'ORD-505', client: 'CV. Bangun Pagi', time: '5h ago', units: ['MSN-099 (100kVA)'], status: 'Normal' },
-];
+import { DispatchQueue, DispatchData } from '@shared/api.types';
 
 export default function LogisticsCommandCenterV2() {
-  const [activeId, setActiveId] = useState<string | null>(QUEUE_DATA[0].id);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
+  const [queueData, setQueueData] = useState<DispatchQueue[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedData = QUEUE_DATA.find(i => i.id === activeId);
+  // Form state for dispatch data
+  const [dispatchForm, setDispatchForm] = useState({
+    sopir: '',
+    plat: '',
+    jamBerangkat: '08:00',
+    buktiFoto: ''
+  });
+
+  // Fetch dispatch queue on mount
+  useEffect(() => {
+    const fetchDispatchQueue = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/dispatch-queue');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setQueueData(result.data || []);
+        if (result.data && result.data.length > 0) {
+          setActiveId(result.data[0].id);
+        }
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch dispatch queue');
+        setIsLoading(false);
+      }
+    };
+    fetchDispatchQueue();
+  }, []);
+
+  const selectedData = queueData.find(i => i.id === activeId);
 
   // FUNGSI PRINT SURAT JALAN (RF-011 Output)
-  const handlePrintSuratJalan = () => {
+  const handlePrintSuratJalan = async () => {
     notifications.show({
       title: 'Menyiapkan Dokumen',
       message: 'Surat Jalan sedang dibuat oleh sistem...',
@@ -38,10 +64,10 @@ export default function LogisticsCommandCenterV2() {
       autoClose: 2000,
     });
     
-    // Simulasi membuka jendela print browser
+    // Simulate API call for document generation
     setTimeout(() => {
       setHasPrinted(true);
-      window.print(); // Ini akan memicu print view
+      window.print(); // This will trigger print view
     }, 2000);
   };
 
@@ -56,17 +82,51 @@ export default function LogisticsCommandCenterV2() {
       return;
     }
 
+    if (!selectedData) return;
+
     setIsSubmitting(true);
-    await new Promise(res => setTimeout(res, 1500));
-    
-    notifications.show({
-      title: 'Unit Berhasil Diberangkatkan',
-      message: `Data logistik ${activeId} telah disimpan dan status unit diperbarui.`,
-      color: 'green',
-      icon: <IconCheck size={18} />
-    });
-    
-    setIsSubmitting(false);
+    try {
+      const dispatchData: DispatchData = {
+        id: selectedData.id,
+        client: selectedData.client,
+        units: selectedData.units,
+        sopir: dispatchForm.sopir,
+        plat: dispatchForm.plat,
+        jamBerangkat: dispatchForm.jamBerangkat,
+        buktiFoto: dispatchForm.buktiFoto
+      };
+
+      const response = await fetch(`http://localhost:4000/api/dispatch/${selectedData.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dispatchData)
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const result = await response.json();
+      
+      notifications.show({
+        title: 'Unit Berhasil Diberangkatkan',
+        message: `Data logistik ${selectedData.id} telah disimpan dan status unit diperbarui.`,
+        color: 'green',
+        icon: <IconCheck size={18} />
+      });
+      
+      // Remove from queue after successful dispatch
+      setQueueData(prev => prev.filter(item => item.id !== selectedData.id));
+      setActiveId(null);
+      setHasPrinted(false);
+      
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to confirm shipment',
+        color: 'red'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,7 +140,15 @@ export default function LogisticsCommandCenterV2() {
         </Box>
 
         <ScrollArea flex={1}>
-          {QUEUE_DATA.map((item) => (
+          {isLoading ? (
+            <Center py={40}>
+              <Text c="dimmed">Loading dispatch queue...</Text>
+            </Center>
+          ) : error ? (
+            <Center py={40}>
+              <Text c="red.7">Error: {error}</Text>
+            </Center>
+          ) : queueData.length > 0 ? queueData.map((item) => (
             <UnstyledButton
               key={item.id}
               onClick={() => { setActiveId(item.id); setHasPrinted(false); }}
@@ -97,7 +165,11 @@ export default function LogisticsCommandCenterV2() {
               <Text size="sm" fw={700}>{item.client}</Text>
               <Text size="xs" c="dimmed">{item.units.length} Unit</Text>
             </UnstyledButton>
-          ))}
+          )) : (
+            <Center py={40}>
+              <Text c="dimmed">No dispatch items in queue</Text>
+            </Center>
+          )}
         </ScrollArea>
       </Box>
 
@@ -126,9 +198,30 @@ export default function LogisticsCommandCenterV2() {
                   {/* INPUT AREA */}
                   <Stack gap="md">
                     <Text fw={800} size="xs" tt="uppercase" c="gray.6">Data Keberangkatan (RF-011)</Text>
-                    <TextInput label="Nama Sopir" placeholder="Nama Lengkap" size="md" leftSection={<IconUser size={18}/>} />
-                    <TextInput label="Plat Nomor Armada" placeholder="B 1234 SAD" size="md" leftSection={<IconForms size={18}/>} />
-                    <TextInput label="Jam Berangkat" type="time" size="md" defaultValue="08:00" leftSection={<IconClock size={18}/>} />
+                    <TextInput 
+                      label="Nama Sopir" 
+                      placeholder="Nama Lengkap" 
+                      size="md" 
+                      leftSection={<IconUser size={18}/>}
+                      value={dispatchForm.sopir}
+                      onChange={(e) => setDispatchForm(prev => ({ ...prev, sopir: e.target.value }))}
+                    />
+                    <TextInput 
+                      label="Plat Nomor Armada" 
+                      placeholder="B 1234 SAD" 
+                      size="md" 
+                      leftSection={<IconForms size={18}/>}
+                      value={dispatchForm.plat}
+                      onChange={(e) => setDispatchForm(prev => ({ ...prev, plat: e.target.value }))}
+                    />
+                    <TextInput 
+                      label="Jam Berangkat" 
+                      type="time" 
+                      size="md" 
+                      leftSection={<IconClock size={18}/>}
+                      value={dispatchForm.jamBerangkat}
+                      onChange={(e) => setDispatchForm(prev => ({ ...prev, jamBerangkat: e.target.value }))}
+                    />
                   </Stack>
 
                   {/* PROOF AREA */}

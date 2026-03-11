@@ -1,9 +1,9 @@
 'use client'
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Table, Badge, Group, Text, Paper, Title, Stack, 
   Button, Box, Image, TextInput, Drawer, SimpleGrid, 
-  ScrollArea, Divider, Card, Modal, Center
+  ScrollArea, Divider, Card, Modal, Center, Alert
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -31,11 +31,37 @@ export default function ValidasiPembayaranUX() {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingAction, setPendingAction] = useState<'Lunas' | 'Ditolak' | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [payments, setPayments] = useState<PaymentData[]>([
-    { id: 'INV-001', pelanggan: 'PT. Maju Jaya', total: 5500000, tanggal: '20 Okt 2025', status: 'Menunggu Validasi', bukti: 'https://placehold.co/1000x1500?text=Bukti+INV-001' },
-    { id: 'INV-002', pelanggan: 'CV. Bangun Pagi', total: 3250000, tanggal: '21 Okt 2025', status: 'Menunggu Validasi', bukti: 'https://placehold.co/1000x1500?text=Bukti+INV-002' },
-  ]);
+  const [payments, setPayments] = useState<PaymentData[]>([]);
+
+  // Fetch payments on mount
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch('http://localhost:4000/api/payments');
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setPayments(result.data || []);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load payments';
+        setError(errorMsg);
+        console.error('Fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPayments();
+  }, []);
 
   const resetState = () => {
     setSelectedPayment(null);
@@ -90,9 +116,24 @@ export default function ValidasiPembayaranUX() {
   const processStatus = async () => {
     if (!selectedPayment || !pendingAction) return;
 
+    setIsProcessing(true);
     try {
-      // Simulasi API call
-      await new Promise((res) => setTimeout(res, 1000));
+      const response = await fetch(`http://localhost:4000/api/payments/${selectedPayment.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          status: pendingAction, 
+          rejectionReason: pendingAction === 'Ditolak' ? rejectionReason : undefined 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
 
       setPayments(prev =>
         prev.map(p =>
@@ -110,18 +151,27 @@ export default function ValidasiPembayaranUX() {
       });
 
       handleCloseAll();
-    } catch {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update payment status';
       notifications.show({
         title: 'Terjadi kesalahan',
-        message: 'Gagal memperbarui status pembayaran.',
+        message: errorMsg,
         color: 'red',
         icon: <IconX size={18} />,
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   return (
     <Stack gap="xl">
+      {error && (
+        <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+          {error}
+        </Alert>
+      )}
+
       <Box>
         <Title order={2} fw={800} c="blue.9">Verifikasi Pembayaran</Title>
         <Text c="dimmed" size="sm">Validasi bukti transfer untuk aktivasi siklus penyewaan.</Text>

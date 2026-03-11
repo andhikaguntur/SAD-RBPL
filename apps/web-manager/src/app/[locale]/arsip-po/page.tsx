@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   Table, TextInput, Divider, ActionIcon, Menu, Drawer,
@@ -12,31 +12,115 @@ import {
   IconFilter, IconDotsVertical, IconCheck, IconClock, 
   IconX, IconFileInvoice, IconTruck, IconHistory
 } from '@tabler/icons-react';
-
-// --- MOCK DATA PO ---
-const PO_ARCHIVE = [
-  { id: 'PO-2026-001', date: '10 Feb 2026', client: 'PT. Maju Jaya', total: 12500000, status: 'Paid', linkedSJ: 'SJ-501' },
-  { id: 'PO-2026-005', date: '12 Feb 2026', client: 'CV. Bangun Pagi', total: 8000000, status: 'Partial', linkedSJ: 'SJ-505' },
-  { id: 'PO-2026-010', date: '15 Feb 2026', client: 'Indo Karya Corp', total: 15000000, status: 'Pending', linkedSJ: '-' },
-  { id: 'PO-2026-012', date: '20 Feb 2026', client: 'Sinar Baru TBK', total: 25000000, status: 'Cancelled', linkedSJ: '-' },
-];
+import { POArchive } from '@shared/api.types';
 
 export default function PurchaseOrderArchive() {
   const [search, setSearch] = useState('');
-  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<POArchive | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const [poArchives, setPoArchives] = useState<POArchive[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch PO archives on mount
+  useEffect(() => {
+    const fetchPoArchives = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/po-archive');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setPoArchives(result.data || []);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch PO archives');
+        setIsLoading(false);
+      }
+    };
+    fetchPoArchives();
+  }, []);
 
   // --- LOGIC: FILTER ---
   const filteredPO = useMemo(() => {
-    return PO_ARCHIVE.filter(po => 
+    return poArchives.filter(po => 
       po.id.toLowerCase().includes(search.toLowerCase()) || 
       po.client.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, poArchives]);
 
-  const handleViewDetail = (po: any) => {
+  const handleViewDetail = (po: POArchive) => {
     setSelectedPO(po);
     open();
+  };
+
+  const handleDownloadPDF = async (poId: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/download-pdf`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const result = await response.json();
+      
+      notifications.show({
+        title: 'Download Started',
+        message: 'PO PDF download has been initiated.',
+        color: 'green',
+        icon: <IconCheck size={18} />
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to download PO PDF',
+        color: 'red'
+      });
+    }
+  };
+
+  const handlePrintInvoice = async (poId: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/print-invoice`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const result = await response.json();
+      
+      notifications.show({
+        title: 'Print Job Queued',
+        message: 'Invoice print job has been queued.',
+        color: 'green',
+        icon: <IconCheck size={18} />
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to queue print job',
+        color: 'red'
+      });
+    }
+  };
+
+  const handleViewTimeline = async (poId: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/timeline`);
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const result = await response.json();
+      
+      // For now, just show a notification. In a real app, this would open a timeline view
+      notifications.show({
+        title: 'Timeline Data',
+        message: `Found ${result.data.length} timeline events for ${poId}`,
+        color: 'blue'
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to fetch timeline',
+        color: 'red'
+      });
+    }
   };
 
   return (
@@ -63,6 +147,19 @@ export default function PurchaseOrderArchive() {
         </Group>
 
         <Divider color="gray.1" />
+
+        {/* Loading and Error States */}
+        {isLoading && (
+          <Center py={40}>
+            <Text c="dimmed">Loading PO archives...</Text>
+          </Center>
+        )}
+        
+        {error && (
+          <Paper withBorder p="md" bg="red.0" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+            <Text c="red.7" fw={600}>Error: {error}</Text>
+          </Paper>
+        )}
 
         {/* --- 2. SUMMARY WIDGETS --- */}
         <SimpleGrid cols={{ base: 1, sm: 4 }}>
@@ -119,10 +216,10 @@ export default function PurchaseOrderArchive() {
                           <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16}/></ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconDownload size={14}/>}>Download PDF</Menu.Item>
-                          <Menu.Item leftSection={<IconPrinter size={14}/>}>Cetak Invoice</Menu.Item>
+                          <Menu.Item leftSection={<IconDownload size={14}/>} onClick={() => handleDownloadPDF(po.id)}>Download PDF</Menu.Item>
+                          <Menu.Item leftSection={<IconPrinter size={14}/>} onClick={() => handlePrintInvoice(po.id)}>Cetak Invoice</Menu.Item>
                           <Menu.Divider />
-                          <Menu.Item leftSection={<IconHistory size={14}/>}>Timeline Status</Menu.Item>
+                          <Menu.Item leftSection={<IconHistory size={14}/>} onClick={() => handleViewTimeline(po.id)}>Timeline Status</Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
                     </Group>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Container, Stack, Title, Text, Paper, Group, TextInput, 
   Select, Button, Table, Badge, Box, LoadingOverlay, Divider,
@@ -12,57 +12,96 @@ import {
   IconSearch, IconFileSpreadsheet, IconFileTypePdf, 
   IconFilter, IconFileAnalytics, IconDownload, IconCheck
 } from '@tabler/icons-react';
-
-// Import ini adalah simulasi. Di project asli, jalankan: npm install jspdf jspdf-autotable
-// import jsPDF from 'jspdf';
-// import autoTable from 'jspdf-autotable';
-
-interface ReportData {
-  id: string;
-  tanggal: string;
-  pelanggan: string;
-  unit: string;
-  nilai: number;
-  statusBayar: string;
-  sopir: string;
-}
-
-const MOCK_REPORTS: ReportData[] = [
-  { id: 'REP-001', tanggal: '20 Feb 2026', pelanggan: 'PT. Maju Jaya', unit: 'Genset 50kVA', nilai: 12500000, statusBayar: 'Lunas', sopir: 'Andi Pratama' },
-  { id: 'REP-002', tanggal: '21 Feb 2026', pelanggan: 'CV. Bangun Pagi', unit: 'Genset 100kVA', nilai: 8500000, statusBayar: 'Lunas', sopir: 'Budi Santoso' },
-  { id: 'REP-003', tanggal: '22 Feb 2026', pelanggan: 'Indo Karya Corp', unit: 'Genset 25kVA', nilai: 5000000, statusBayar: 'Pending', sopir: 'Herman' },
-];
+import { ReportData } from '@shared/api.types';
 
 export default function LaporanManagerProduction() {
   const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
+  const [reports, setReports] = useState<ReportData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch reports on mount
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/reports');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setReports(result.data || []);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch reports');
+        setIsLoading(false);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  // Filter reports based on search
+  const filteredReports = reports.filter(report => 
+    report.pelanggan.toLowerCase().includes(search.toLowerCase()) || 
+    report.id.toLowerCase().includes(search.toLowerCase())
+  );
 
   // --- PRODUCTION PDF GENERATOR ---
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     
-    // Simulasi inisialisasi library (jsPDF & autoTable)
     try {
-      await new Promise(res => setTimeout(res, 1500)); // Simulasi loading generator
+      const response = await fetch('http://localhost:4000/api/reports/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ search, reports: filteredReports })
+      });
 
-      /** * LOGIKA GENERATE (Conceptual Logic for Production):
-       * 1. Inisialisasi: const doc = new jsPDF();
-       * 2. Header: doc.text("CV. SARANA ABADI DIESEL", 14, 15);
-       * 3. Table: autoTable(doc, { 
-       * head: [['ID', 'Pelanggan', 'Unit', 'Nilai', 'Status']],
-       * body: MOCK_REPORTS.map(r => [r.id, r.pelanggan, r.unit, r.nilai, r.statusBayar])
-       * });
-       * 4. Save: doc.save("Laporan-SAD.pdf");
-       */
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
+      const result = await response.json();
+      
       notifications.show({
         title: 'Ekspor Berhasil',
         message: 'Laporan PDF telah berhasil digenerate dan diunduh.',
         color: 'green',
         icon: <IconCheck size={18} />
       });
-    } catch (error) {
-      notifications.show({ title: 'Gagal', message: 'Gagal membuat dokumen PDF', color: 'red' });
+    } catch (err) {
+      notifications.show({ 
+        title: 'Gagal', 
+        message: err instanceof Error ? err.message : 'Gagal membuat dokumen PDF', 
+        color: 'red' 
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    setIsExporting(true);
+    
+    try {
+      const response = await fetch('http://localhost:4000/api/reports/export-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ search, reports: filteredReports })
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const result = await response.json();
+      
+      notifications.show({
+        title: 'Ekspor Berhasil',
+        message: 'Laporan Excel telah berhasil digenerate dan diunduh.',
+        color: 'green',
+        icon: <IconCheck size={18} />
+      });
+    } catch (err) {
+      notifications.show({ 
+        title: 'Gagal', 
+        message: err instanceof Error ? err.message : 'Gagal membuat dokumen Excel', 
+        color: 'red' 
+      });
     } finally {
       setIsExporting(false);
     }
@@ -92,6 +131,8 @@ export default function LaporanManagerProduction() {
                 variant="outline" 
                 color="gray" 
                 leftSection={<IconFileSpreadsheet size={18}/>}
+                onClick={handleDownloadExcel}
+                loading={isExporting}
                 radius="md"
             >
               Export Excel
@@ -135,57 +176,65 @@ export default function LaporanManagerProduction() {
 
         {/* --- 3. DATA TABLE (Clean & High Contrast) --- */}
         <Box pos="relative">
-          <LoadingOverlay visible={isExporting} overlayProps={{ blur: 2 }} />
+          <LoadingOverlay visible={isExporting || isLoading} overlayProps={{ blur: 2 }} />
           
-          <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
-            <Table verticalSpacing="md" horizontalSpacing="lg">
-              <Table.Thead bg="gray.0">
-                <Table.Tr>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>ID LAPORAN</Table.Th>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>DATA PELANGGAN</Table.Th>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>UNIT SEWA</Table.Th>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>TOTAL NILAI</Table.Th>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>PEMBAYARAN</Table.Th>
-                  <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>LOGISTIK</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {MOCK_REPORTS.map((item) => (
-                  <Table.Tr key={item.id}>
-                    <Table.Td fw={800} c="blue.9">{item.id}</Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={700}>{item.pelanggan}</Text>
-                      <Text size="xs" c="dimmed">{item.tanggal}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>{item.unit}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={800}>Rp {item.nilai.toLocaleString('id-ID')}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge 
-                        variant="light" 
-                        color={item.statusBayar === 'Lunas' ? 'green' : 'orange'}
-                        radius="sm"
-                      >
-                        {item.statusBayar}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" fw={700}>{item.sopir}</Text>
-                      <Text size="10px" c="dimmed">Verified Dispatch</Text>
-                    </Table.Td>
+          {error && (
+            <Paper withBorder p="md" bg="red.0" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+              <Text c="red.7" fw={600}>Error: {error}</Text>
+            </Paper>
+          )}
+
+          {!isLoading && !error && (
+            <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+              <Table verticalSpacing="md" horizontalSpacing="lg">
+                <Table.Thead bg="gray.0">
+                  <Table.Tr>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>ID LAPORAN</Table.Th>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>DATA PELANGGAN</Table.Th>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>UNIT SEWA</Table.Th>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>TOTAL NILAI</Table.Th>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>PEMBAYARAN</Table.Th>
+                    <Table.Th style={{ fontSize: '11px', color: '#868e96' }}>LOGISTIK</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Paper>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredReports.map((item) => (
+                    <Table.Tr key={item.id}>
+                      <Table.Td fw={800} c="blue.9">{item.id}</Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={700}>{item.pelanggan}</Text>
+                        <Text size="xs" c="dimmed">{item.tanggal}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>{item.unit}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={800}>Rp {item.nilai.toLocaleString('id-ID')}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge 
+                          variant="light" 
+                          color={item.statusBayar === 'Lunas' ? 'green' : 'orange'}
+                          radius="sm"
+                        >
+                          {item.statusBayar}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" fw={700}>{item.sopir}</Text>
+                        <Text size="10px" c="dimmed">Verified Dispatch</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          )}
         </Box>
 
         {/* --- 4. FOOTER INFO --- */}
         <Group justify="space-between" mt="md">
-            <Text size="xs" c="dimmed">Menampilkan <b>{MOCK_REPORTS.length}</b> entri data laporan.</Text>
+            <Text size="xs" c="dimmed">Menampilkan <b>{filteredReports.length}</b> entri data laporan.</Text>
             <Button variant="subtle" color="gray" size="xs" rightSection={<IconFilter size={14}/>}>
                 Tampilkan Lebih Banyak
             </Button>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   Table, TextInput, Divider, ActionIcon, Drawer,
@@ -13,53 +13,40 @@ import {
   IconClock, IconDeviceDesktop, IconFilter, IconChevronRight,
   IconDatabaseEdit, IconAlertCircle
 } from '@tabler/icons-react';
-
-// --- MOCK DATA LOG ---
-const ACTIVITY_LOGS = [
-  { 
-    id: 'LOG-881', 
-    timestamp: '23 Feb 2026, 09:15', 
-    staff: 'Nurul Bahri', 
-    role: 'Admin Finance',
-    action: 'UPDATE_STATUS', 
-    target: 'PO-2026-001',
-    description: 'Mengubah status pembayaran menjadi LUNAS',
-    changes: { old: 'Partial', new: 'Paid' }
-  },
-  { 
-    id: 'LOG-882', 
-    timestamp: '23 Feb 2026, 10:30', 
-    staff: 'Bambang', 
-    role: 'Gudang',
-    action: 'DISPATCH_UNIT', 
-    target: 'ORD-510',
-    description: 'Input data keberangkatan armada (Sopir: Herman)',
-    changes: { old: 'Pending Dispatch', new: 'On-Road' }
-  },
-  { 
-    id: 'LOG-885', 
-    timestamp: '23 Feb 2026, 11:00', 
-    staff: 'Andi Supriadi', 
-    role: 'Manager Ops',
-    action: 'SYSTEM_LOG', 
-    target: 'CONFIG_PRICE',
-    description: 'Update harga sewa harian Genset 50kVA',
-    changes: { old: '1.5M', new: '1.7M' }
-  },
-];
+import { ActivityLog } from '@shared/api.types';
 
 export default function StaffActivityLog() {
   const [search, setSearch] = useState('');
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch activity logs on mount
+  useEffect(() => {
+    const fetchActivityLogs = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/logs');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setActivityLogs(result.data || []);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch activity logs');
+        setIsLoading(false);
+      }
+    };
+    fetchActivityLogs();
+  }, []);
 
   // --- LOGIC: FILTER ---
   const filteredLogs = useMemo(() => {
-    return ACTIVITY_LOGS.filter(log => 
-      log.staff.toLowerCase().includes(search.toLowerCase()) || 
+    return activityLogs.filter(log => 
+      log.admin.toLowerCase().includes(search.toLowerCase()) || 
       log.target.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, activityLogs]);
 
   const handleViewDetail = (log: any) => {
     setSelectedLog(log);
@@ -93,6 +80,19 @@ export default function StaffActivityLog() {
 
         <Divider color="gray.1" />
 
+        {/* Loading and Error States */}
+        {isLoading && (
+          <Center py={40}>
+            <Text c="dimmed">Loading activity logs...</Text>
+          </Center>
+        )}
+        
+        {error && (
+          <Paper withBorder p="md" bg="red.0" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+            <Text c="red.7" fw={600}>Error: {error}</Text>
+          </Paper>
+        )}
+
         {/* --- LOG TABLE --- */}
         <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
           <Table verticalSpacing="md" horizontalSpacing="lg" highlightOnHover>
@@ -117,10 +117,10 @@ export default function StaffActivityLog() {
                   </Table.Td>
                   <Table.Td>
                     <Group gap="sm">
-                      <Avatar size="sm" radius="xl" color="blue">{log.staff.charAt(0)}</Avatar>
+                      <Avatar size="sm" radius="xl" color="blue">{log.admin.charAt(0)}</Avatar>
                       <Box>
-                        <Text size="xs" fw={800}>{log.staff}</Text>
-                        <Text size="10px" c="dimmed">{log.role}</Text>
+                        <Text size="xs" fw={800}>{log.admin}</Text>
+                        <Text size="10px" c="dimmed">{log.type}</Text>
                       </Box>
                     </Group>
                   </Table.Td>
@@ -130,7 +130,7 @@ export default function StaffActivityLog() {
                     </Badge>
                   </Table.Td>
                   <Table.Td fw={800} size="xs" c="blue.9">{log.target}</Table.Td>
-                  <Table.Td size="xs" c="dimmed" fw={500}>{log.description}</Table.Td>
+                  <Table.Td size="xs" c="dimmed" fw={500}>{JSON.stringify(log.detail)}</Table.Td>
                   <Table.Td ta="right">
                     <ActionIcon variant="subtle" color="gray" onClick={() => handleViewDetail(log)}>
                       <IconChevronRight size={18} />

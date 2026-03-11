@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   Divider, Drawer, ActionIcon, Tooltip, Avatar, 
@@ -13,21 +13,7 @@ import {
   IconHistory, IconEngine, IconMapPin, IconPhone, 
   IconCheck, IconPackageOff, IconClock, IconFileText 
 } from '@tabler/icons-react';
-
-// --- DATA STRUCTURE (API READY) ---
-interface DeliveryTrack {
-  id: string;
-  pelanggan: string;
-  sopir: string;
-  kontak: string;
-  plat: string;
-  berangkatAt: string;
-  status: 'OTW' | 'DISEWA'; // DISEWA = Sudah divalidasi Admin (Archive)
-  items: string;
-  lastLocation: string;
-  progress: number; // 0 - 100 for GPS track
-  detailItems: { sn: string; model: string }[];
-}
+import { DeliveryTrack } from '@shared/api.types';
 
 const MOCK_DATA: DeliveryTrack[] = [
   { 
@@ -54,16 +40,36 @@ export default function FleetMonitoringProduction() {
   const [opened, { open, close }] = useDisclosure(false);
   const [selectedFleet, setSelectedFleet] = useState<DeliveryTrack | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deliveryTracks, setDeliveryTracks] = useState<DeliveryTrack[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch delivery tracks on mount
+  useEffect(() => {
+    const fetchDeliveryTracks = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/delivery-tracks');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setDeliveryTracks(result.data || []);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch delivery tracks');
+        setIsLoading(false);
+      }
+    };
+    fetchDeliveryTracks();
+  }, []);
 
   // --- LOGIC: FILTER & SORT ---
   const filteredData = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return MOCK_DATA.filter(i => 
+    return deliveryTracks.filter(i => 
       i.sopir.toLowerCase().includes(q) || 
       i.pelanggan.toLowerCase().includes(q) || 
       i.id.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, deliveryTracks]);
 
   // Split data: OTW (Active) dan DISEWA (Archive)
   const activeFleet = useMemo(() => 
@@ -103,6 +109,19 @@ export default function FleetMonitoringProduction() {
         </Group>
 
         <Divider color="gray.1" />
+
+        {/* Loading and Error States */}
+        {isLoading && (
+          <Center py={40}>
+            <Text c="dimmed">Loading delivery tracks...</Text>
+          </Center>
+        )}
+        
+        {error && (
+          <Paper withBorder p="md" bg="red.0" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+            <Text c="red.7" fw={600}>Error: {error}</Text>
+          </Paper>
+        )}
 
         {/* --- 2. ACTIVE MONITORING SECTION (OTW) --- */}
         <Box>
@@ -226,7 +245,18 @@ export default function FleetMonitoringProduction() {
                         <Text fw={800} size="lg">{selectedFleet.sopir}</Text>
                         <Text size="xs" c="dimmed" fw={600}>{selectedFleet.plat}</Text>
                     </Box>
-                    <Button variant="light" color="green" radius="xl" leftSection={<IconPhone size={16}/>}>
+                    <Button 
+                      variant="light" 
+                      color="green" 
+                      radius="xl" 
+                      leftSection={<IconPhone size={16}/>}
+                      onClick={() => {
+                        // In a real app, this would initiate a phone call
+                        // For now, just copy to clipboard or show notification
+                        navigator.clipboard?.writeText(selectedFleet.kontak);
+                        // You could also use window.location.href = `tel:${selectedFleet.kontak}`;
+                      }}
+                    >
                         Hubungi
                     </Button>
                 </Group>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   SimpleGrid, TextInput, Table, ActionIcon, Divider, 
@@ -15,29 +15,43 @@ import {
   IconUser, IconDotsVertical, IconCalendarClock, IconTool,
   IconChecks, IconAlertCircle, IconFileText, IconChevronRight, IconX
 } from '@tabler/icons-react';
-
-// --- MOCK DATA (In Production, this comes from API) ---
-const INITIAL_STOK = [
-  { id: 'MSN-001', model: 'Genset Perkins 50kVA', hourMeter: 1240, lastUsed: '2026-02-10', lastProject: 'PT. Maju Jaya', status: 'Ready' },
-  { id: 'MSN-002', model: 'Genset Perkins 50kVA', hourMeter: 890, lastUsed: '2026-02-20', lastProject: 'CV. Sumber Makmur', status: 'Ready' },
-  { id: 'MSN-099', model: 'Genset Cummins 100kVA', hourMeter: 2100, lastUsed: '2026-01-05', lastProject: 'Indo Karya Corp', status: 'Maintenance' },
-];
+import { Machine, MaintenanceLog } from '@shared/api.types';
 
 export default function StockAsetManagerPage() {
   const [search, setSearch] = useState('');
-  const [selectedUnit, setSelectedUnit] = useState<any>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Machine | null>(null);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Control untuk Drawer History & Modal Perbaikan
   const [openedHistory, { open: openHistory, close: closeHistory }] = useDisclosure(false);
   const [openedRepair, { open: openRepair, close: closeRepair }] = useDisclosure(false);
 
+  // Fetch machines on mount
+  useEffect(() => {
+    const fetchMachines = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/machines');
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const result = await response.json();
+        setMachines(result.data || []);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch machines');
+        setIsLoading(false);
+      }
+    };
+    fetchMachines();
+  }, []);
+
   // --- LOGIC: FILTER & CALCULATION ---
   const filteredData = useMemo(() => {
-    return INITIAL_STOK.filter(item => 
+    return machines.filter(item => 
       item.id.toLowerCase().includes(search.toLowerCase()) || 
       item.model.toLowerCase().includes(search.toLowerCase())
     );
-  }, [search]);
+  }, [search, machines]);
 
   const getIdleDays = (dateStr: string) => {
     const diff = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / (1000 * 3600 * 24));
@@ -45,7 +59,7 @@ export default function StockAsetManagerPage() {
   };
 
   // --- ACTIONS ---
-  const handleAction = (unit: any, type: 'history' | 'repair') => {
+  const handleAction = (unit: Machine, type: 'history' | 'repair') => {
     setSelectedUnit(unit);
     if (type === 'history') openHistory();
     else openRepair();
@@ -71,6 +85,19 @@ export default function StockAsetManagerPage() {
 
         <Divider color="gray.1" />
 
+        {/* Loading and Error States */}
+        {isLoading && (
+          <Center py={40}>
+            <Text c="dimmed">Loading machines...</Text>
+          </Center>
+        )}
+        
+        {error && (
+          <Paper withBorder p="md" bg="red.0" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+            <Text c="red.7" fw={600}>Error: {error}</Text>
+          </Paper>
+        )}
+
         {/* --- 2. TECHNICAL STATS --- */}
         <SimpleGrid cols={{ base: 1, sm: 3 }}>
           <StatMini label="UNIT SIAP KIRIM" val="12 Unit" icon={<IconEngine/>} color="blue" />
@@ -94,28 +121,28 @@ export default function StockAsetManagerPage() {
             </Table.Thead>
             <Table.Tbody>
               {filteredData.map((unit) => {
-                const idle = getIdleDays(unit.lastUsed);
+                const idle = getIdleDays(unit.lastService);
                 return (
                   <Table.Tr key={unit.id}>
                     <Table.Td fw={800} c="blue.9">{unit.id}</Table.Td>
-                    <Table.Td fw={700} size="sm">{unit.model}</Table.Td>
+                    <Table.Td fw={700} size="sm">{unit.model} ({unit.cap})</Table.Td>
                     <Table.Td>
                       <Group gap={6}>
                         <IconClock size={14} color="gray"/>
-                        <Text size="sm" fw={800}>{unit.hourMeter.toLocaleString()} <Text span fw={500} c="dimmed">hrs</Text></Text>
+                        <Text size="sm" fw={800}>N/A <Text span fw={500} c="dimmed">hrs</Text></Text>
                       </Group>
                     </Table.Td>
                     <Table.Td>
                       <Box>
                         <Text size="sm" fw={600} c={idle > 30 ? 'red.7' : 'gray.8'}>{idle} Hari</Text>
-                        <Text size="10px" c="dimmed">Sejak: {unit.lastUsed}</Text>
+                        <Text size="10px" c="dimmed">Sejak: {unit.lastService}</Text>
                       </Box>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap={6}><IconUser size={14} color="gray"/><Text size="xs" fw={600}>{unit.lastProject}</Text></Group>
+                      <Group gap={6}><IconUser size={14} color="gray"/><Text size="xs" fw={600}>{unit.customer || 'N/A'}</Text></Group>
                     </Table.Td>
                     <Table.Td>
-                      <Badge variant="outline" radius="xs" color={unit.status === 'Ready' ? 'green' : 'orange'}>{unit.status}</Badge>
+                      <Badge variant="outline" radius="xs" color={unit.status === 'Tersedia' ? 'green' : unit.status === 'Perbaikan' ? 'orange' : 'blue'}>{unit.status}</Badge>
                     </Table.Td>
                     <Table.Td ta="right">
                       <Menu position="bottom-end" shadow="md">
@@ -223,22 +250,87 @@ function LifecycleContent({ unit }: any) {
 
 function MaintenanceModal({ opened, onClose, unitId, hm }: any) {
   const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    kategori: 'Rutin',
+    hmSaatPerbaikan: hm || 0,
+    teknisi: '',
+    keterangan: ''
+  });
   
   const handleSave = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    notifications.show({ title: 'Log Disimpan', message: `Unit ${unitId} masuk antrean perbaikan.`, color: 'orange' });
-    setLoading(false);
-    onClose();
+    try {
+      const maintenanceData = {
+        unitId,
+        kategori: formData.kategori,
+        hmSaatPerbaikan: formData.hmSaatPerbaikan,
+        teknisi: formData.teknisi,
+        keterangan: formData.keterangan
+      };
+
+      const response = await fetch('http://localhost:4000/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(maintenanceData)
+      });
+
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+      const result = await response.json();
+      
+      notifications.show({ 
+        title: 'Log Disimpan', 
+        message: `Unit ${unitId} masuk antrean perbaikan.`, 
+        color: 'orange' 
+      });
+      
+      // Reset form
+      setFormData({
+        kategori: 'Rutin',
+        hmSaatPerbaikan: hm || 0,
+        teknisi: '',
+        keterangan: ''
+      });
+      
+      onClose();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to save maintenance log',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Modal opened={opened} onClose={onClose} title={<Text fw={900}>Log Perbaikan: {unitId}</Text>} centered>
       <Stack>
-        <Select label="Kategori" data={['Rutin', 'Perbaikan Berat', 'Ganti Part']} defaultValue="Rutin" />
-        <NumberInput label="HM Saat Perbaikan" defaultValue={hm} />
-        <TextInput label="Teknisi" placeholder="Nama mekanik" />
-        <Textarea label="Keterangan Kerusakan" placeholder="Jelaskan detail tindakan..." minRows={3} />
+        <Select 
+          label="Kategori" 
+          data={['Rutin', 'Perbaikan Berat', 'Ganti Part']} 
+          value={formData.kategori}
+          onChange={(value) => setFormData(prev => ({ ...prev, kategori: value || 'Rutin' }))}
+        />
+        <NumberInput 
+          label="HM Saat Perbaikan" 
+          value={formData.hmSaatPerbaikan}
+          onChange={(value) => setFormData(prev => ({ ...prev, hmSaatPerbaikan: Number(value) || 0 }))}
+        />
+        <TextInput 
+          label="Teknisi" 
+          placeholder="Nama mekanik"
+          value={formData.teknisi}
+          onChange={(e) => setFormData(prev => ({ ...prev, teknisi: e.target.value }))}
+        />
+        <Textarea 
+          label="Keterangan Kerusakan" 
+          placeholder="Jelaskan detail tindakan..." 
+          minRows={3}
+          value={formData.keterangan}
+          onChange={(e) => setFormData(prev => ({ ...prev, keterangan: e.target.value }))}
+        />
         <Button color="orange.8" fullWidth onClick={handleSave} loading={loading}>Simpan & Update Unit</Button>
       </Stack>
     </Modal>
