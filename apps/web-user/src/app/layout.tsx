@@ -17,10 +17,10 @@ const cormorant = Cormorant_Garamond({
   weight: ["400", "500", "600", "700"],
 });
 
-// Metadata
+// Metadata minimal
 export const metadata: Metadata = {
-  title: "SAD Rental - Sumber Anugrah Diesel Equipment Rental",
-  description: "Easy diesel equipment rental platform - Gensets, heavy machinery, and more",
+  title: "SAD User",
+  description: "User App for Sumber Anugrah Diesel bookings system",
   authors: [{ name: "Galang Ivandry & Andhika Guntur" }],
   creator: "SAD RBPL Project",
 };
@@ -42,7 +42,7 @@ export default function RootLayout({
           theme={{
             fontFamily: "var(--font-montserrat), sans-serif",
             headings: { fontFamily: "var(--font-cormorant), serif" },
-            primaryColor: "blue",
+            primaryColor: "violet",
           }}
         >
           <Notifications mt={50} position="top-right" />
