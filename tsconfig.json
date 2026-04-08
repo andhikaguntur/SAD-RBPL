@@ -12,17 +12,32 @@
 		"composite": true,
 		"declaration": true,
 		"declarationMap": true,
+		"types": ["node"],
 		"paths": {
-			"@domain/*": ["packages/domain/src/*"],
-			"@contract/*": ["packages/contract/dist/*"]
+			"@domain/*": [
+				"packages/domain/src/*"
+			],
+			"@contract/*": [
+				"packages/contract/dist/*"
+			]
 		}
 	},
 	"files": [],
 	"references": [
-		{ "path": "packages/contract" },
-		{ "path": "apps/api" },
-		{ "path": "apps/web-admin" },
-		{ "path": "apps/web-manager" },
-		{ "path": "apps/web-user" }
+		{
+			"path": "packages/domain"
+		},
+		{
+			"path": "apps/api"
+		},
+		{
+			"path": "apps/web-admin"
+		},
+		{
+			"path": "apps/web-manager"
+		},
+		{
+			"path": "apps/web-user"
+		}
 	]
 }
