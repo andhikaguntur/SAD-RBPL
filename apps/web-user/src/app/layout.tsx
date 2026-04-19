@@ -3,6 +3,8 @@ import { Montserrat, Cormorant_Garamond } from "next/font/google";
 import { MantineProvider, mantineHtmlProps, ColorSchemeScript } from "@mantine/core";
 import "./globals.css";
 import { Notifications } from "@mantine/notifications";
+import { AuthProvider } from "../hooks/useAuth";
+import { NextIntlClientProvider } from "next-intl";
 
 // Google Fonts
 const montserrat = Montserrat({
@@ -36,18 +38,22 @@ export default function RootLayout({
       <body
         className={`${montserrat.variable} ${cormorant.variable} antialiased`}
       >
-        <MantineProvider
-          withGlobalClasses
-          withCssVariables
-          theme={{
-            fontFamily: "var(--font-montserrat), sans-serif",
-            headings: { fontFamily: "var(--font-cormorant), serif" },
-            primaryColor: "violet",
-          }}
-        >
-          <Notifications mt={50} position="top-right" />
-          {children}
-        </MantineProvider>
+        <NextIntlClientProvider>
+          <MantineProvider
+            withGlobalClasses
+            withCssVariables
+            theme={{
+              fontFamily: "var(--font-montserrat), sans-serif",
+              headings: { fontFamily: "var(--font-cormorant), serif" },
+              primaryColor: "violet",
+            }}
+          >
+            <Notifications mt={50} position="top-right" />
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </MantineProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

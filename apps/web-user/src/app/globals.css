@@ -1,20 +1,34 @@
+
+/* Mantine base styles - keep these so Mantine components render correctly */
 @import '@mantine/core/styles.css';
 @import '@mantine/notifications/styles.css';
-@import "tailwindcss";
 
+/* Removed Tailwind import to avoid global utility collisions with Mantine CSS-in-JS.
+   If you still want Tailwind in this app, restore the import and the PostCSS setup.
+*/
 
-@theme inline {
-  --font-heading: var(--font-cormorant);
-  --font-body: var(--font-montserrat);
+/* Minimal theme variables and reset suitable for Mantine */
+:root {
+  --font-heading: var(--font-cormorant, serif);
+  --font-body: var(--font-montserrat, system-ui, sans-serif);
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+html, body, #__next {
+  height: 100%;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-montserrat), sans-serif;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-cormorant), serif;
+  font-family: var(--font-heading);
 }
 
