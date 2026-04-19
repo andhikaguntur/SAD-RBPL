@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -87,6 +88,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const locale = useLocale();
   const { isAuthenticated } = useAuth();
+  const t = useTranslations('Notifications');
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const [activeTab, setActiveTab] = useState<string | null>('all');
 
@@ -134,15 +136,15 @@ export default function NotificationsPage() {
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'rental':
-        return 'Sewa';
+        return t('rentalLabel');
       case 'invoice':
-        return 'Invoice';
+        return t('invoiceLabel');
       case 'alert':
-        return 'Peringatan';
+        return t('alertLabel');
       case 'system':
-        return 'Sistem';
+        return t('systemLabel');
       default:
-        return 'Lainnya';
+        return t('otherLabel');
     }
   };
 
@@ -170,7 +172,7 @@ export default function NotificationsPage() {
               </Badge>
               {!notification.read && (
                 <Badge size="sm" variant="dot" color="blue">
-                  Baru
+                  {t('new')}
                 </Badge>
               )}
             </Group>
@@ -211,9 +213,9 @@ export default function NotificationsPage() {
       <Container size="md" py="xl">
         <Group justify="space-between" mb="xl">
           <div>
-            <Title order={2}>Notifikasi</Title>
+            <Title order={2}>{t('title')}</Title>
             <Text c="dimmed" size="sm" mt="xs">
-              Kelola semua pemberitahuan dari kami
+              {t('description')}
             </Text>
           </div>
           {unreadCount > 0 && (
@@ -222,7 +224,7 @@ export default function NotificationsPage() {
               size="sm"
               onClick={handleMarkAllAsRead}
             >
-              Tandai Semua Sebagai Dibaca
+              {t('markAllAsRead')}
             </Button>
           )}
         </Group>
@@ -230,16 +232,16 @@ export default function NotificationsPage() {
         <Tabs value={activeTab} onChange={setActiveTab} mb="xl">
           <Tabs.List>
             <Tabs.Tab value="all" leftSection={<IconBell size={14} />}>
-              Semua ({allNotifications.length})
+              {t('allTab')} ({allNotifications.length})
             </Tabs.Tab>
             <Tabs.Tab value="unread" leftSection={<IconAlertCircle size={14} />}>
-              Belum Dibaca ({unreadCount})
+              {t('unreadTab')} ({unreadCount})
             </Tabs.Tab>
             <Tabs.Tab value="rentals" leftSection={<IconTruck size={14} />}>
-              Sewa
+              {t('rentalTab')}
             </Tabs.Tab>
             <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={14} />}>
-              Invoice
+              {t('invoiceTab')}
             </Tabs.Tab>
           </Tabs.List>
 
@@ -248,7 +250,7 @@ export default function NotificationsPage() {
               {allNotifications.length === 0 ? (
                 <Paper withBorder p="lg" radius="md" ta="center">
                   <IconBell size={48} style={{ margin: '0 auto', opacity: 0.3 }} />
-                  <Text c="dimmed" mt="md">Tidak ada notifikasi</Text>
+                  <Text c="dimmed" mt="md">{t('noNotifications')}</Text>
                 </Paper>
               ) : (
                 allNotifications.map(renderNotification)
@@ -261,7 +263,7 @@ export default function NotificationsPage() {
               {unreadNotifications.length === 0 ? (
                 <Paper withBorder p="lg" radius="md" ta="center">
                   <IconCheck size={48} style={{ margin: '0 auto', opacity: 0.3 }} />
-                  <Text c="dimmed" mt="md">Tidak ada notifikasi baru</Text>
+                  <Text c="dimmed" mt="md">{t('noUnread')}</Text>
                 </Paper>
               ) : (
                 unreadNotifications.map(renderNotification)
@@ -274,7 +276,7 @@ export default function NotificationsPage() {
               {allNotifications.filter((n) => n.type === 'rental').length === 0 ? (
                 <Paper withBorder p="lg" radius="md" ta="center">
                   <IconTruck size={48} style={{ margin: '0 auto', opacity: 0.3 }} />
-                  <Text c="dimmed" mt="md">Tidak ada notifikasi sewa</Text>
+                  <Text c="dimmed" mt="md">{t('noRentalNotifications')}</Text>
                 </Paper>
               ) : (
                 allNotifications
@@ -289,7 +291,7 @@ export default function NotificationsPage() {
               {allNotifications.filter((n) => n.type === 'invoice').length === 0 ? (
                 <Paper withBorder p="lg" radius="md" ta="center">
                   <IconFileInvoice size={48} style={{ margin: '0 auto', opacity: 0.3 }} />
-                  <Text c="dimmed" mt="md">Tidak ada notifikasi invoice</Text>
+                  <Text c="dimmed" mt="md">{t('noInvoiceNotifications')}</Text>
                 </Paper>
               ) : (
                 allNotifications

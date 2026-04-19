@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -31,18 +32,11 @@ const machines = [
   { id: 'm3', name: 'Loader 3T', desc: 'Small loader for logistics', pricePerDay: 350000 },
 ];
 
-export default function NewRent() {
+export default function RentPage() {
   const router = useRouter();
   const locale = useLocale();
   const { isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push(`/${locale}/rent`);
-    } else {
-      router.push(`/${locale}/login`);
-    }
-  }, [isAuthenticated, router, locale]);
+  const t = useTranslations('Rent');
 
   const [active, setActive] = useState(0);
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
@@ -53,8 +47,8 @@ export default function NewRent() {
       endDate: '',
     },
     validate: {
-      startDate: (v) => (v ? null : 'Tanggal mulai harus dipilih'),
-      endDate: (v) => (v ? null : 'Tanggal selesai harus dipilih'),
+      startDate: (v) => (v ? null : t('startDateRequired')),
+      endDate: (v) => (v ? null : t('endDateRequired')),
     },
   });
 
@@ -65,8 +59,8 @@ export default function NewRent() {
       notes: '',
     },
     validate: {
-      address: (v) => (v ? null : 'Alamat diperlukan'),
-      city: (v) => (v ? null : 'Kota diperlukan'),
+      address: (v) => (v ? null : t('addressRequired')),
+      city: (v) => (v ? null : t('cityRequired')),
     },
   });
 
@@ -89,8 +83,8 @@ export default function NewRent() {
   const handleSubmit = () => {
     // mock submit
     showNotification({
-      title: 'Permintaan berhasil dikirim',
-      message: 'Tim kami akan menghubungi Anda segera.',
+      title: t('successTitle'),
+      message: t('successMessage'),
       color: 'green',
       icon: <IconCheck size={16} />,
     });
@@ -103,14 +97,14 @@ export default function NewRent() {
     <AppLayout>
       <Container size="md" py="xl">
         <Title order={2} mb="sm">
-          Permintaan Sewa Baru
+          {t('title')}
         </Title>
         <Text color="dimmed" mb="md">
-          Ikuti langkah sederhana untuk meminta sewa mesin. Kami akan meninjau lalu mengirimkan penawaran.
+          {t('description')}
         </Text>
 
         <Stepper active={active} onStepClick={setActive}>
-        <Stepper.Step label="Pilih Mesin" description="Pilih unit yang Anda butuhkan">
+        <Stepper.Step label={t('step1Label')} description={t('step1Desc')}>
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {machines.map((m) => (
               <Card shadow="sm" radius="md" withBorder key={m.id}>
@@ -123,7 +117,7 @@ export default function NewRent() {
                 </Text>
                 <Group justify="right">
                   <Button variant={selectedMachine === m.id ? 'filled' : 'outline'} onClick={() => setSelectedMachine(m.id)}>
-                    {selectedMachine === m.id ? 'Terpilih' : 'Pilih ini'}
+                    {selectedMachine === m.id ? t('selected') : t('selectThis')}
                   </Button>
                 </Group>
               </Card>
@@ -132,62 +126,62 @@ export default function NewRent() {
 
           <Group mt="md">
             <Button variant="default" onClick={handlePrev} disabled={active === 0}>
-              Kembali
+              {t('back')}
             </Button>
-            <Button onClick={() => (selectedMachine ? handleNext() : showNotification({ title: 'Pilih mesin', message: 'Silakan pilih mesin terlebih dahulu', color: 'red' }))}>
-              Lanjutkan
+            <Button onClick={() => (selectedMachine ? handleNext() : showNotification({ title: t('selectMachine'), message: t('selectMachineMessage'), color: 'red' }))}>
+              {t('continue')}
             </Button>
           </Group>
         </Stepper.Step>
 
-        <Stepper.Step label="Jadwal" description="Pilih tanggal sewa">
+        <Stepper.Step label={t('step2Label')} description={t('step2Desc')}>
           <Stack>
-            <TextInput label="Tanggal Mulai (YYYY-MM-DD)" placeholder="2026-04-01" {...scheduleForm.getInputProps('startDate')} />
-            <TextInput label="Tanggal Selesai (YYYY-MM-DD)" placeholder="2026-04-03" {...scheduleForm.getInputProps('endDate')} />
+            <TextInput label={t('startDateLabel')} placeholder={t('startDatePlaceholder')} {...scheduleForm.getInputProps('startDate')} />
+            <TextInput label={t('endDateLabel')} placeholder={t('endDatePlaceholder')} {...scheduleForm.getInputProps('endDate')} />
 
             <Group mt="md">
               <Button variant="default" onClick={handlePrev}>
-                Kembali
+                {t('back')}
               </Button>
               <Button onClick={() => { if (scheduleForm.validate().hasErrors) { scheduleForm.validate(); } else handleNext(); }}>
-                Lanjutkan
+                {t('continue')}
               </Button>
             </Group>
           </Stack>
         </Stepper.Step>
 
-        <Stepper.Step label="Lokasi" description="Dimana mesin diantar">
+        <Stepper.Step label={t('step3Label')} description={t('step3Desc')}>
           <Stack>
-            <TextInput label="Alamat lengkap" placeholder="Jl. Contoh No.1" {...locationForm.getInputProps('address')} />
-            <TextInput label="Kota" placeholder="Bandung" {...locationForm.getInputProps('city')} />
-            <Textarea label="Catatan untuk pengiriman" placeholder="Contoh: masuk gerbang B" {...locationForm.getInputProps('notes')} />
+            <TextInput label={t('addressLabel')} placeholder={t('addressPlaceholder')} {...locationForm.getInputProps('address')} />
+            <TextInput label={t('cityLabel')} placeholder={t('cityPlaceholder')} {...locationForm.getInputProps('city')} />
+            <Textarea label={t('notesLabel')} placeholder={t('notesPlaceholder')} {...locationForm.getInputProps('notes')} />
 
             <Group mt="md">
               <Button variant="default" onClick={handlePrev}>
-                Kembali
+                {t('back')}
               </Button>
               <Button onClick={() => { if (locationForm.validate().hasErrors) { locationForm.validate(); } else handleNext(); }}>
-                Lanjutkan
+                {t('continue')}
               </Button>
             </Group>
           </Stack>
         </Stepper.Step>
 
-        <Stepper.Step label="Konfirmasi" description="Periksa dan kirim">
+        <Stepper.Step label={t('step4Label')} description={t('step4Desc')}>
           <Box>
-            <Text fw={700} mb="xs">Ringkasan Permintaan</Text>
+            <Text fw={700} mb="xs">{t('summaryTitle')}</Text>
             <Stack gap="xs">
-              <Text>{summary().machine?.name ?? 'Belum memilih mesin'}</Text>
-              <Text color="dimmed">Durasi: {summary().days} hari</Text>
-              <Text color="dimmed">Total perkiraan: Rp {summary().total.toLocaleString()}</Text>
+              <Text>{summary().machine?.name ?? t('noMachineSelected')}</Text>
+              <Text color="dimmed">{t('duration')}: {summary().days} {t('days')}</Text>
+              <Text color="dimmed">{t('estimatedTotal')}: Rp {summary().total.toLocaleString()}</Text>
             </Stack>
 
             <Group mt="md">
               <Button variant="default" onClick={handlePrev}>
-                Kembali
+                {t('back')}
               </Button>
               <Button color="violet" onClick={handleSubmit}>
-                Kirim Permintaan
+                {t('submit')}
               </Button>
             </Group>
           </Box>
@@ -195,7 +189,7 @@ export default function NewRent() {
 
         <Stepper.Completed>
           <Notification icon={<IconCheck size={18} />} color="green">
-            Permintaan dikirim — Anda akan menerima penawaran dalam beberapa saat.
+            {t('completedMessage')}
           </Notification>
         </Stepper.Completed>
         </Stepper>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const locale = useLocale();
   const { isAuthenticated } = useAuth();
+  const t = useTranslations('Settings');
   const [isLoading, setIsLoading] = useState(false);
   const [openedPasswordModal, setOpenedPasswordModal] = useState(false);
   const [notifications, setNotifications] = useState<{
@@ -60,14 +62,14 @@ export default function SettingsPage() {
       confirmPassword: '',
     },
     validate: {
-      currentPassword: (value) => (!value ? 'Password saat ini harus diisi' : null),
+      currentPassword: (value) => (!value ? t('passwordCurrentRequired') : null),
       newPassword: (value) => {
-        if (!value) return 'Password baru harus diisi';
-        if (value.length < 6) return 'Password minimal 6 karakter';
+        if (!value) return t('passwordNewRequired');
+        if (value.length < 6) return t('passwordMinLength');
         return null;
       },
       confirmPassword: (value, values) =>
-        value !== values.newPassword ? 'Password tidak cocok' : null,
+        value !== values.newPassword ? t('passwordMismatch') : null,
     },
   });
 
@@ -98,15 +100,15 @@ export default function SettingsPage() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
       showNotification({
-        title: 'Preferensi Tersimpan',
-        message: 'Pengaturan Anda telah diperbarui dengan sukses.',
+        title: t('preferencesSaved'),
+        message: t('preferencesSavedMessage'),
         color: 'green',
         icon: <IconCheck size={16} />,
       });
     } catch {
       showNotification({
-        title: 'Error',
-        message: 'Gagal menyimpan preferensi.',
+        title: t('error'),
+        message: t('preferencesErrorMessage'),
         color: 'red',
       });
     } finally {
@@ -121,8 +123,8 @@ export default function SettingsPage() {
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
       showNotification({
-        title: 'Password Berhasil Diubah',
-        message: 'Password Anda telah diperbarui dengan aman.',
+        title: t('passwordChanged'),
+        message: t('passwordChangedMessage'),
         color: 'green',
         icon: <IconCheck size={16} />,
       });
@@ -130,8 +132,8 @@ export default function SettingsPage() {
       setOpenedPasswordModal(false);
     } catch {
       showNotification({
-        title: 'Error',
-        message: 'Gagal mengubah password.',
+        title: t('error'),
+        message: t('passwordErrorMessage'),
         color: 'red',
       });
     } finally {
@@ -144,10 +146,10 @@ export default function SettingsPage() {
       <Container size="md" py="xl">
         <div style={{ marginBottom: 32 }}>
           <Title order={2} mb="xs">
-            Pengaturan Akun
+            {t('title')}
           </Title>
           <Text c="dimmed">
-            Kelola preferensi, notifikasi, dan keamanan akun Anda
+            {t('description')}
           </Text>
         </div>
 
@@ -158,11 +160,11 @@ export default function SettingsPage() {
               <Title order={4}>
                 <Group gap="xs">
                   <IconBell size={20} />
-                  Preferensi Notifikasi
+                  {t('notificationPreferences')}
                 </Group>
               </Title>
               <Text size="sm" c="dimmed" mt="xs">
-                Pilih bagaimana Anda ingin menerima pemberitahuan dari kami
+                {t('notificationPreferencesDesc')}
               </Text>
             </div>
           </Group>
@@ -172,9 +174,9 @@ export default function SettingsPage() {
           <Stack gap="md">
             <Group justify="space-between">
               <div>
-                <Text fw={500}>Notifikasi Email</Text>
+                <Text fw={500}>{t('emailNotifications')}</Text>
                 <Text size="sm" c="dimmed">
-                  Terima pemberitahuan melalui email
+                  {t('emailNotificationsDesc')}
                 </Text>
               </div>
               <Switch
@@ -185,9 +187,9 @@ export default function SettingsPage() {
 
             <Group justify="space-between">
               <div>
-                <Text fw={500}>Notifikasi SMS</Text>
+                <Text fw={500}>{t('smsNotifications')}</Text>
                 <Text size="sm" c="dimmed">
-                  Terima pemberitahuan melalui SMS (biaya SMS berlaku)
+                  {t('smsNotificationsDesc')}
                 </Text>
               </div>
               <Switch
@@ -198,9 +200,9 @@ export default function SettingsPage() {
 
             <Group justify="space-between">
               <div>
-                <Text fw={500}>Update Sewa</Text>
+                <Text fw={500}>{t('rentalUpdates')}</Text>
                 <Text size="sm" c="dimmed">
-                  Pemberitahuan status sewa dan pengiriman
+                  {t('rentalUpdatesDesc')}
                 </Text>
               </div>
               <Switch
@@ -211,9 +213,9 @@ export default function SettingsPage() {
 
             <Group justify="space-between">
               <div>
-                <Text fw={500}>Promosi & Penawaran</Text>
+                <Text fw={500}>{t('promotions')}</Text>
                 <Text size="sm" c="dimmed">
-                  Penawaran khusus dan promosi terbatas
+                  {t('promotionsDesc')}
                 </Text>
               </div>
               <Switch
@@ -228,7 +230,7 @@ export default function SettingsPage() {
               loading={isLoading}
               mt="md"
             >
-              Simpan Preferensi Notifikasi
+              {t('saveNotificationPreferences')}
             </Button>
           </Stack>
         </Paper>
@@ -236,13 +238,13 @@ export default function SettingsPage() {
         {/* General Preferences */}
         <Paper withBorder p="lg" radius="md" mb="xl">
           <Title order={4} mb="md">
-            Preferensi Umum
+            {t('generalPreferences')}
           </Title>
 
           <Stack gap="md">
             <Select
-              label="Bahasa"
-              placeholder="Pilih bahasa"
+              label={t('language')}
+              placeholder={t('languagePlaceholder')}
               data={[
                 { value: 'id', label: 'Bahasa Indonesia' },
                 { value: 'en', label: 'English' },
@@ -252,8 +254,8 @@ export default function SettingsPage() {
             />
 
             <Select
-              label="Mata Uang"
-              placeholder="Pilih mata uang"
+              label={t('currency')}
+              placeholder={t('currencyPlaceholder')}
               data={[
                 { value: 'IDR', label: 'Rupiah (IDR)' },
                 { value: 'USD', label: 'US Dollar (USD)' },
@@ -268,7 +270,7 @@ export default function SettingsPage() {
               loading={isLoading}
               mt="md"
             >
-              Simpan Preferensi
+              {t('savePreferences')}
             </Button>
           </Stack>
         </Paper>
@@ -278,13 +280,13 @@ export default function SettingsPage() {
           <Title order={4} mb="md">
             <Group gap="xs">
               <IconLock size={20} />
-              Keamanan
+              {t('security')}
             </Group>
           </Title>
 
           <Stack gap="md">
             <Alert icon={<IconAlertCircle size={16} />} color="blue">
-              Password terakhir diubah pada 15 Maret 2026
+              {t('passwordLastChanged')}
             </Alert>
 
             <Button
@@ -292,7 +294,7 @@ export default function SettingsPage() {
               fullWidth
               onClick={() => setOpenedPasswordModal(true)}
             >
-              Ubah Password
+              {t('changePassword')}
             </Button>
           </Stack>
         </Paper>
@@ -300,12 +302,12 @@ export default function SettingsPage() {
         {/* Danger Zone */}
         <Paper withBorder p="lg" radius="md" style={{ borderColor: '#fa5252' }}>
           <Title order={4} mb="md" c="red">
-            Zona Berbahaya
+            {t('dangerZone')}
           </Title>
 
           <Stack gap="md">
-            <Alert icon={<IconAlertCircle size={16} />} color="red" title="Perhatian">
-              Tindakan di bagian ini tidak dapat dibatalkan. Pastikan Anda benar-benar ingin melakukannya.
+            <Alert icon={<IconAlertCircle size={16} />} color="red" title={t('warning')}>
+              {t('irreversibleAction')}
             </Alert>
 
             <Button
@@ -314,7 +316,7 @@ export default function SettingsPage() {
               fullWidth
               disabled
             >
-              Nonaktifkan Akun
+              {t('disableAccount')}
             </Button>
           </Stack>
         </Paper>
@@ -324,34 +326,34 @@ export default function SettingsPage() {
       <Modal
         opened={openedPasswordModal}
         onClose={() => setOpenedPasswordModal(false)}
-        title="Ubah Password"
+        title={t('changePasswordModal')}
         centered
       >
         <Stack gap="md">
           <PasswordInput
-            label="Password Saat Ini"
-            placeholder="Masukkan password Anda"
+            label={t('currentPassword')}
+            placeholder={t('currentPasswordPlaceholder')}
             {...passwordForm.getInputProps('currentPassword')}
           />
 
           <PasswordInput
-            label="Password Baru"
-            placeholder="Masukkan password baru"
+            label={t('newPassword')}
+            placeholder={t('newPasswordPlaceholder')}
             {...passwordForm.getInputProps('newPassword')}
           />
 
           <PasswordInput
-            label="Konfirmasi Password Baru"
-            placeholder="Ulangi password baru"
+            label={t('confirmNewPassword')}
+            placeholder={t('confirmNewPasswordPlaceholder')}
             {...passwordForm.getInputProps('confirmPassword')}
           />
 
           <Group justify="flex-end" mt="xl">
             <Button variant="outline" onClick={() => setOpenedPasswordModal(false)}>
-              Batal
+              {t('cancel')}
             </Button>
             <Button onClick={handleChangePassword} loading={isLoading}>
-              Ubah Password
+              {t('changePassword')}
             </Button>
           </Group>
         </Stack>

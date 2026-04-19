@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -30,10 +32,10 @@ const mockInvoices: Invoice[] = [
 ];
 
 export default function BillingPage() {
-  const pathname = usePathname();
   const router = useRouter();
-  const locale = pathname?.split('/')[1] || 'id';
+  const locale = useLocale();
   const { isAuthenticated } = useAuth();
+  const t = useTranslations('Billing');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -71,10 +73,10 @@ export default function BillingPage() {
     // simulate saving to server/localStorage
     try {
       localStorage.setItem(`invoice_upload_${active.id}`, JSON.stringify({ name: file.name, content: b64, uploadedAt: new Date().toISOString() }));
-      showNotification({ title: 'Bukti bayar tersimpan', message: 'Bukti pembayaran berhasil diunggah (disimpan lokal).', color: 'green', icon: <IconCheck size={16} /> });
+      showNotification({ title: t('uploadSuccessTitle'), message: t('uploadSuccessMessage'), color: 'green', icon: <IconCheck size={16} /> });
       setProgress(100);
     } catch (e) {
-      showNotification({ title: 'Gagal menyimpan', message: 'Terjadi kesalahan saat menyimpan bukti pembayaran.', color: 'red' });
+      showNotification({ title: t('uploadErrorTitle'), message: t('uploadErrorMessage'), color: 'red' });
     }
 
     // small delay so user sees progress
@@ -85,8 +87,8 @@ export default function BillingPage() {
   return (
     <AppLayout>
       <Container size="lg" py="xl">
-        <Title order={2} mb="sm">Billing & Invoice</Title>
-        <Text c="dimmed" mb="md">Lihat faktur Anda, unduh PDF (placeholder), dan unggah bukti pembayaran dengan mudah.</Text>
+        <Title order={2} mb="sm">{t('title')}</Title>
+        <Text c="dimmed" mb="md">{t('description')}</Text>
 
         <Stack gap="md">
           {invoices.map((inv) => (
@@ -102,7 +104,7 @@ export default function BillingPage() {
 
                 <Group>
                   <Badge>{`Rp ${inv.total.toLocaleString()}`}</Badge>
-                  <Button variant="subtle" onClick={() => openInvoice(inv)}>Lihat</Button>
+                  <Button variant="subtle" onClick={() => openInvoice(inv)}>{t('view')}</Button>
                   <Text c={inv.status === 'Paid' ? 'green' : 'orange'}>{inv.status}</Text>
                 </Group>
               </Group>
@@ -110,25 +112,25 @@ export default function BillingPage() {
           ))}
         </Stack>
 
-        <Modal opened={opened} onClose={() => setOpened(false)} title={active?.ref ?? 'Invoice'} size="lg">
+        <Modal opened={opened} onClose={() => setOpened(false)} title={active?.ref ?? t('invoiceModal')} size="lg">
           <Stack gap="md">
             <Group justify="apart">
               <div>
                 <Text fw={700}>{active?.ref}</Text>
-                <Text size="sm" c="dimmed">Tanggal: {active?.date}</Text>
+                <Text size="sm" c="dimmed">{t('date')}: {active?.date}</Text>
               </div>
               <Badge>{active ? `Rp ${active.total.toLocaleString()}` : ''}</Badge>
             </Group>
 
-            <Text c="dimmed">Status: {active?.status}</Text>
+            <Text c="dimmed">{t('status')}: {active?.status}</Text>
 
             <div>
-              <Text size="sm" c="dimmed" mb="xs">Unggah Bukti Pembayaran</Text>
+              <Text size="sm" c="dimmed" mb="xs">{t('uploadProof')}</Text>
               <Group>
                 <FileButton onChange={handleUpload} accept="image/*,application/pdf">
                   {(props) => (
                     <Button leftSection={<IconUpload size={16} />} {...props} disabled={uploading}>
-                      {uploading ? 'Mengunggah...' : 'Pilih / Seret File'}
+                      {uploading ? t('uploading') : t('selectFile')}
                     </Button>
                   )}
                 </FileButton>
@@ -137,7 +139,7 @@ export default function BillingPage() {
             </div>
 
             <div>
-              <Text size="sm" c="dimmed">Catatan: Semua file gambar akan dikompresi sebelum disimpan (simulasi).</Text>
+              <Text size="sm" c="dimmed">{t('note')}</Text>
             </div>
           </Stack>
         </Modal>

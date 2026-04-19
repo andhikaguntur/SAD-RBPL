@@ -2,6 +2,7 @@
 
 import { useAuth } from '../../../hooks/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect } from 'react';
 import {
   Container,
@@ -57,6 +58,7 @@ export default function Dashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname?.split('/')[1] || 'id';
+  const t = useTranslations('Dashboard');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -72,10 +74,10 @@ export default function Dashboard() {
         {/* Welcome Header */}
         <div style={{ marginBottom: 32 }}>
           <Title order={1} mb="xs">
-            Selamat datang, {user?.name || 'Pengguna'}!
+            {t('welcome', { name: user?.name || 'Pengguna' })}
           </Title>
           <Text c="dimmed" size="lg">
-            Kelola penyewaan diesel dan logistik Anda dengan mudah
+            {t('description')}
           </Text>
         </div>
 
@@ -84,7 +86,7 @@ export default function Dashboard() {
           <Card withBorder p="lg" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" fw={500} c="dimmed">
-                Sewa Aktif
+                {t('activeRentals')}
               </Text>
               <ThemeIcon size="lg" color="blue" variant="light">
                 <IconTruck size={20} />
@@ -98,7 +100,7 @@ export default function Dashboard() {
           <Card withBorder p="lg" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" fw={500} c="dimmed">
-                Penawaran Tertunda
+                {t('pendingQuotes')}
               </Text>
               <ThemeIcon size="lg" color="yellow" variant="light">
                 <IconClock size={20} />
@@ -112,7 +114,7 @@ export default function Dashboard() {
           <Card withBorder p="lg" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" fw={500} c="dimmed">
-                Invoice Belum Dibayar
+                {t('unpaidInvoices')}
               </Text>
               <ThemeIcon size="lg" color="red" variant="light">
                 <IconFileInvoice size={20} />
@@ -126,7 +128,7 @@ export default function Dashboard() {
           <Card withBorder p="lg" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" fw={500} c="dimmed">
-                Total Pengeluaran
+                {t('totalSpent')}
               </Text>
               <ThemeIcon size="lg" color="green" variant="light">
                 <IconCircleCheck size={20} />
@@ -141,7 +143,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <Card withBorder p="lg" radius="md" mb="xl">
           <Title order={3} mb="md">
-            Aksi Cepat
+            {t('quickActions')}
           </Title>
           <Group gap="md">
             <Button
@@ -149,21 +151,21 @@ export default function Dashboard() {
               color="blue"
               onClick={() => router.push(`/${locale}/rent`)}
             >
-              Buat Permintaan Baru
+              {t('newRentalRequest')}
             </Button>
             <Button
               variant="outline"
               leftSection={<IconClipboardCheck size={16} />}
               onClick={() => router.push(`/${locale}/quotations`)}
             >
-              Lihat Penawaran
+              {t('viewQuotations')}
             </Button>
             <Button
               variant="outline"
               leftSection={<IconFileInvoice size={16} />}
               onClick={() => router.push(`/${locale}/billing`)}
             >
-              Kelola Billing
+              {t('viewInvoices')}
             </Button>
           </Group>
         </Card>
@@ -171,7 +173,7 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <Card withBorder p="lg" radius="md">
           <Title order={3} mb="md">
-            Aktivitas Terbaru
+            {t('recentRentals')}
           </Title>
           <Stack gap="md">
             {mockRecentRentals.length === 0 ? (
@@ -192,7 +194,7 @@ export default function Dashboard() {
                       color={rental.status === 'active' ? 'green' : 'gray'}
                       variant="light"
                     >
-                      {rental.status === 'active' ? 'Aktif' : 'Selesai'}
+                      {rental.status === 'active' ? t('active') : t('completed')}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">

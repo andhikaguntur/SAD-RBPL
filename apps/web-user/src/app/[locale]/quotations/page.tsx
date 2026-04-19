@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -112,6 +113,7 @@ export default function QuotationsPage() {
   const router = useRouter();
   const locale = useLocale();
   const { isAuthenticated } = useAuth();
+  const t = useTranslations('Quotations');
   const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
   const [activeTab, setActiveTab] = useState<string | null>('pending');
   const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
@@ -144,13 +146,13 @@ export default function QuotationsPage() {
   const getStatusLabel = (status: string): string => {
     switch (status) {
       case 'pending':
-        return 'Tertunda';
+        return t('statusPending');
       case 'accepted':
-        return 'Diterima';
+        return t('statusAccepted');
       case 'rejected':
-        return 'Ditolak';
+        return t('statusRejected');
       case 'expired':
-        return 'Kedaluwarsa';
+        return t('statusExpired');
       default:
         return 'Unknown';
     }
@@ -183,8 +185,8 @@ export default function QuotationsPage() {
       );
 
       showNotification({
-        title: 'Penawaran Diterima',
-        message: 'Penawaran telah diterima. Silakan lanjutkan ke proses pembayaran.',
+        title: t('acceptedTitle'),
+        message: t('acceptedMessage'),
         color: 'green',
         icon: <IconCheck size={16} />,
       });
@@ -193,8 +195,8 @@ export default function QuotationsPage() {
       router.push(`/${locale}/billing`);
     } catch {
       showNotification({
-        title: 'Error',
-        message: 'Gagal menerima penawaran.',
+        title: t('error'),
+        message: t('acceptErrorMessage'),
         color: 'red',
       });
     } finally {
@@ -214,16 +216,16 @@ export default function QuotationsPage() {
       );
 
       showNotification({
-        title: 'Penawaran Ditolak',
-        message: 'Penawaran telah ditolak.',
+        title: t('rejectedTitle'),
+        message: t('rejectedMessage'),
         color: 'orange',
       });
 
       setOpenedModal(false);
     } catch {
       showNotification({
-        title: 'Error',
-        message: 'Gagal menolak penawaran.',
+        title: t('error'),
+        message: t('rejectErrorMessage'),
         color: 'red',
       });
     } finally {
@@ -233,8 +235,8 @@ export default function QuotationsPage() {
 
   const handleDownloadPDF = (ref: string): void => {
     showNotification({
-      title: 'Unduhan Dimulai',
-      message: `Penawaran ${ref} sedang diunduh...`,
+      title: t('downloadStarted'),
+      message: t('downloadMessage', { ref }),
       color: 'blue',
     });
   };
@@ -324,26 +326,26 @@ export default function QuotationsPage() {
       <Container size="lg" py="xl">
         <div style={{ marginBottom: 32 }}>
           <Title order={2} mb="xs">
-            Penawaran Harga
+            {t('title')}
           </Title>
           <Text c="dimmed">
-            Lihat dan kelola semua penawaran harga untuk permintaan sewa Anda
+            {t('description')}
           </Text>
         </div>
 
         <Tabs value={activeTab} onChange={setActiveTab} mb="xl">
           <Tabs.List>
             <Tabs.Tab value="pending" leftSection={<IconClock size={14} />}>
-              Tertunda ({pendingQuotes.length})
+              {t('pendingTab')} ({pendingQuotes.length})
             </Tabs.Tab>
             <Tabs.Tab value="accepted" leftSection={<IconCheck size={14} />}>
-              Diterima ({acceptedQuotes.length})
+              {t('acceptedTab')} ({acceptedQuotes.length})
             </Tabs.Tab>
             <Tabs.Tab value="rejected" leftSection={<IconX size={14} />}>
-              Ditolak ({rejectedQuotes.length})
+              {t('rejectedTab')} ({rejectedQuotes.length})
             </Tabs.Tab>
             <Tabs.Tab value="all" leftSection={<IconFileText size={14} />}>
-              Semua ({allQuotes.length})
+              {t('allTab')} ({allQuotes.length})
             </Tabs.Tab>
           </Tabs.List>
 
@@ -406,7 +408,7 @@ export default function QuotationsPage() {
               {allQuotes.length === 0 ? (
                 <Grid.Col span={12}>
                   <Paper withBorder p="lg" radius="md" ta="center">
-                    <Text c="dimmed">Belum ada penawaran</Text>
+                    <Text c="dimmed">{t('noQuotations')}</Text>
                   </Paper>
                 </Grid.Col>
               ) : (
@@ -425,7 +427,7 @@ export default function QuotationsPage() {
       <Modal
         opened={openedModal}
         onClose={() => setOpenedModal(false)}
-        title={selectedQuote?.ref || 'Detail Penawaran'}
+        title={selectedQuote?.ref || t('detailModal')}
         size="lg"
       >
         {selectedQuote && (
@@ -453,7 +455,7 @@ export default function QuotationsPage() {
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <div>
                   <Text size="sm" c="dimmed">
-                    Jenis Mesin
+                    {t('machineType')}
                   </Text>
                   <Text fw={600}>{selectedQuote.details.machineType}</Text>
                 </div>
@@ -461,7 +463,7 @@ export default function QuotationsPage() {
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <div>
                   <Text size="sm" c="dimmed">
-                    Kapasitas
+                    {t('capacity')}
                   </Text>
                   <Text fw={600}>{selectedQuote.details.machineCapacity}</Text>
                 </div>
@@ -469,7 +471,7 @@ export default function QuotationsPage() {
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <div>
                   <Text size="sm" c="dimmed">
-                    Periode Sewa
+                    {t('rentalPeriod')}
                   </Text>
                   <Text fw={600}>{selectedQuote.details.rentalPeriod}</Text>
                 </div>
@@ -477,7 +479,7 @@ export default function QuotationsPage() {
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <div>
                   <Text size="sm" c="dimmed">
-                    Lokasi Pengiriman
+                    {t('deliveryLocation')}
                   </Text>
                   <Text fw={600}>{selectedQuote.details.deliveryLocation}</Text>
                 </div>
@@ -489,13 +491,13 @@ export default function QuotationsPage() {
             {/* Pricing */}
             <Stack gap="xs">
               <Group justify="space-between">
-                <Text>Tarif Harian</Text>
+                <Text>{t('dailyRate')}</Text>
                 <Text fw={600}>
                   Rp {selectedQuote.details.dailyRate.toLocaleString('id-ID')}
                 </Text>
               </Group>
               <Group justify="space-between">
-                <Text>Biaya Pemeliharaan</Text>
+                <Text>{t('maintenanceFee')}</Text>
                 <Text fw={600}>
                   Rp {selectedQuote.details.maintenanceFee.toLocaleString('id-ID')}
                 </Text>
@@ -503,7 +505,7 @@ export default function QuotationsPage() {
               <Divider />
               <Group justify="space-between">
                 <Text fw={700} size="lg">
-                  Total
+                  {t('total')}
                 </Text>
                 <Text fw={700} size="lg" color="blue">
                   Rp {selectedQuote.totalPrice.toLocaleString('id-ID')}
@@ -515,13 +517,13 @@ export default function QuotationsPage() {
             <Group justify="space-between" p="md" bg="gray.0">
               <div>
                 <Text size="sm" c="dimmed">
-                  Dibuat
+                  {t('created')}
                 </Text>
                 <Text fw={600}>{selectedQuote.createdDate}</Text>
               </div>
               <div>
                 <Text size="sm" c="dimmed">
-                  Berlaku Hingga
+                  {t('expiryDate')}
                 </Text>
                 <Text fw={600}>{selectedQuote.expiryDate}</Text>
               </div>
@@ -535,13 +537,13 @@ export default function QuotationsPage() {
                   onClick={() => handleRejectQuote(selectedQuote.id)}
                   loading={isLoading}
                 >
-                  Tolak
+                  {t('reject')}
                 </Button>
                 <Button
                   onClick={() => handleAcceptQuote(selectedQuote.id)}
                   loading={isLoading}
                 >
-                  Terima
+                  {t('accept')}
                 </Button>
               </Group>
             )}

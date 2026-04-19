@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   Container,
   Title,
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const locale = useLocale();
   const { isAuthenticated, user } = useAuth();
+  const t = useTranslations('Profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,9 +46,9 @@ export default function ProfilePage() {
       companyAddress: '',
     },
     validate: {
-      name: (value) => (!value ? 'Nama tidak boleh kosong' : null),
-      email: (value) => (!value ? 'Email tidak boleh kosong' : !/^\S+@\S+$/.test(value) ? 'Email tidak valid' : null),
-      phone: (value) => (!value ? 'Nomor telepon tidak boleh kosong' : null),
+      name: (value) => (!value ? t('nameRequired') : null),
+      email: (value) => (!value ? t('emailRequired') : !/^\S+@\S+$/.test(value) ? t('emailInvalid') : null),
+      phone: (value) => (!value ? t('phoneRequired') : null),
     },
   });
 
@@ -67,8 +69,8 @@ export default function ProfilePage() {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       showNotification({
-        title: 'Profil Tersimpan',
-        message: 'Data profil Anda telah diperbarui dengan sukses.',
+        title: t('saved'),
+        message: t('savedMessage'),
         color: 'green',
         icon: <IconCheck size={16} />,
       });
@@ -76,8 +78,8 @@ export default function ProfilePage() {
       setIsEditing(false);
     } catch {
       showNotification({
-        title: 'Error',
-        message: 'Gagal menyimpan profil. Silakan coba lagi.',
+        title: t('error'),
+        message: t('errorMessage'),
         color: 'red',
       });
     } finally {
@@ -90,10 +92,10 @@ export default function ProfilePage() {
       <Container size="md" py="xl">
         <div style={{ marginBottom: 32 }}>
           <Title order={2} mb="xs">
-            Profil Saya
+            {t('title')}
           </Title>
           <Text c="dimmed">
-            Kelola informasi pribadi dan perusahaan Anda
+            {t('description')}
           </Text>
         </div>
 
@@ -109,7 +111,7 @@ export default function ProfilePage() {
                 {user?.email || 'email@contoh.com'}
               </Text>
               <Badge mt="xs" variant="light">
-                Anggota aktif sejak 2026
+                {t('activeMember')}
               </Badge>
             </div>
           </Group>
@@ -118,38 +120,38 @@ export default function ProfilePage() {
         {/* Personal Information */}
         <Paper withBorder p="lg" radius="md" mb="xl">
           <Group justify="space-between" mb="md">
-            <Title order={4}>Informasi Pribadi</Title>
+            <Title order={4}>{t('personalInfo')}</Title>
             <Button
               variant={isEditing ? 'outline' : 'light'}
               size="xs"
               onClick={() => setIsEditing(!isEditing)}
             >
-              {isEditing ? 'Batal' : 'Ubah'}
+              {isEditing ? t('cancel') : t('edit')}
             </Button>
           </Group>
 
           <Stack gap="md">
             <Group grow>
               <TextInput
-                label="Nama Lengkap"
-                placeholder="Masukkan nama Anda"
-                // input={<IconUser size={16} />}
+                label={t('fullName')}
+                placeholder={t('fullNamePlaceholder')}
+                leftSection={<IconUser size={16} />}
                 {...form.getInputProps('name')}
                 disabled={!isEditing || isLoading}
               />
               <TextInput
-                label="Email"
-                placeholder="email@contoh.com"
-                // icon={<IconMail size={16} />}
+                label={t('email')}
+                placeholder={t('emailPlaceholder')}
+                leftSection={<IconMail size={16} />}
                 {...form.getInputProps('email')}
                 disabled={!isEditing || isLoading}
               />
             </Group>
 
             <TextInput
-              label="Nomor Telepon"
-              placeholder="08123456789"
-              // icon={<IconPhone size={16} />}
+              label={t('phone')}
+              placeholder={t('phonePlaceholder')}
+              leftSection={<IconPhone size={16} />}
               {...form.getInputProps('phone')}
               disabled={!isEditing || isLoading}
             />
@@ -161,7 +163,7 @@ export default function ProfilePage() {
                 loading={isLoading}
                 mt="md"
               >
-                Simpan Perubahan
+                {t('save')}
               </Button>
             )}
           </Stack>
@@ -170,22 +172,22 @@ export default function ProfilePage() {
         {/* Company Information */}
         <Paper withBorder p="lg" radius="md" mb="xl">
           <Title order={4} mb="md">
-            Informasi Perusahaan
+            {t('companyInfo')}
           </Title>
 
           <Stack gap="md">
             <TextInput
-              label="Nama Perusahaan"
-              placeholder="PT. Contoh Indonesia"
-              // icon={<IconUser size={16} />}
+              label={t('companyName')}
+              placeholder={t('companyNamePlaceholder')}
+              leftSection={<IconUser size={16} />}
               {...form.getInputProps('companyName')}
               disabled={!isEditing || isLoading}
             />
 
             <TextInput
-              label="Alamat Perusahaan"
-              placeholder="Jl. Contoh No. 1, Jakarta"
-              // icon={<IconMapPin size={16} />}
+              label={t('companyAddress')}
+              placeholder={t('companyAddressPlaceholder')}
+              leftSection={<IconMapPin size={16} />}
               {...form.getInputProps('companyAddress')}
               disabled={!isEditing || isLoading}
             />
@@ -196,7 +198,7 @@ export default function ProfilePage() {
                 onClick={handleSave}
                 loading={isLoading}
               >
-                Simpan Perubahan
+                {t('save')}
               </Button>
             )}
           </Stack>
@@ -205,13 +207,13 @@ export default function ProfilePage() {
         {/* Account Statistics */}
         <Paper withBorder p="lg" radius="md">
           <Title order={4} mb="md">
-            Statistik Akun
+            {t('accountStats')}
           </Title>
 
           <Group grow>
             <div>
               <Text size="sm" c="dimmed">
-                Total Sewa
+                {t('totalRentals')}
               </Text>
               <Text fw={700} size="lg">
                 12
@@ -219,7 +221,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <Text size="sm" c="dimmed">
-                Sewa Aktif
+                {t('activeRentals')}
               </Text>
               <Text fw={700} size="lg">
                 2
@@ -227,7 +229,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <Text size="sm" c="dimmed">
-                Total Pengeluaran
+                {t('totalSpending')}
               </Text>
               <Text fw={700} size="lg">
                 Rp 15.5M
@@ -235,7 +237,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <Text size="sm" c="dimmed">
-                Member Sejak
+                {t('memberSince')}
               </Text>
               <Text fw={700} size="lg">
                 Mar 2026
