@@ -147,7 +147,7 @@ export default function Dashboard() {
             <Button
               leftSection={<IconPlus size={16} />}
               color="blue"
-              onClick={() => router.push(`/${locale}/rent/new`)}
+              onClick={() => router.push(`/${locale}/rent`)}
             >
               Buat Permintaan Baru
             </Button>

@@ -36,6 +36,14 @@ export default function NewRent() {
   const locale = useLocale();
   const { isAuthenticated } = useAuth();
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push(`/${locale}/rent`);
+    } else {
+      router.push(`/${locale}/login`);
+    }
+  }, [isAuthenticated, router, locale]);
+
   const [active, setActive] = useState(0);
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
 
