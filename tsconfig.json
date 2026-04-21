@@ -12,16 +12,32 @@
 		"composite": true,
 		"declaration": true,
 		"declarationMap": true,
+		"types": ["node"],
 		"paths": {
-			"@shared/*": ["packages/shared/src/*"]
+			"@domain/*": [
+				"packages/domain/src/*"
+			],
+			"@contract/*": [
+				"packages/contract/dist/*"
+			]
 		}
 	},
 	"files": [],
 	"references": [
-		{ "path": "packages/shared" },
-		{ "path": "apps/api" },
-		{ "path": "apps/web-admin" },
-		{ "path": "apps/web-manager" },
-		{ "path": "apps/web-user" }
+		{
+			"path": "packages/domain"
+		},
+		{
+			"path": "apps/api"
+		},
+		{
+			"path": "apps/web-admin"
+		},
+		{
+			"path": "apps/web-manager"
+		},
+		{
+			"path": "apps/web-user"
+		}
 	]
 }
