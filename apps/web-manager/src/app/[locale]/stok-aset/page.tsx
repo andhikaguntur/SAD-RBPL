@@ -5,7 +5,7 @@ import {
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   SimpleGrid, TextInput, Table, ActionIcon, Divider, 
   Tooltip, ThemeIcon, Drawer, Timeline, ScrollArea, Button,
-  Menu, Modal, Textarea, Select, NumberInput
+  Menu, Modal, Textarea, Select, NumberInput, Center
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';

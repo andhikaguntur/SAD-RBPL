@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Stack, Group, Text, Title, Paper, Badge, Box, 
   Table, TextInput, Divider, ActionIcon, Menu, Drawer,
-  SimpleGrid, ThemeIcon, ScrollArea, Button, Tooltip
+  SimpleGrid, ThemeIcon, ScrollArea, Button, Tooltip,
+  Center
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
