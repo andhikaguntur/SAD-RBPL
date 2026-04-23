@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Badge,
   Group,
@@ -21,6 +21,7 @@ import {
   Container,
   Checkbox,
   LoadingOverlay,
+  Alert,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -60,32 +61,36 @@ export default function KonfirmasiPenerimaanInteraktif() {
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [deliveries, setDeliveries] = useState<OrderData[]>([
-    {
-      id: 'ORD-501',
-      pelanggan: 'PT. Maju Jaya',
-      tanggalKirim: '18 Okt 2025',
-      sopir: 'Andi Supriadi',
-      status: 'Dikirim',
-      unit: [
-        { id: 'MSN-001', jenis: 'Genset 50kVA' },
-        { id: 'MSN-002', jenis: 'Genset 50kVA' },
-      ],
-      buktiSuratJalan:
-        'https://placehold.co/800x1200?text=Surat+Jalan+ORD-501',
-    },
-    {
-      id: 'ORD-505',
-      pelanggan: 'CV. Bangun Pagi',
-      tanggalKirim: '19 Okt 2025',
-      sopir: 'Budi Santoso',
-      status: 'Dikirim',
-      unit: [{ id: 'MSN-099', jenis: 'Genset 100kVA' }],
-      buktiSuratJalan:
-        'https://placehold.co/800x1200?text=Surat+Jalan+ORD-505',
-    },
-  ]);
+  const [deliveries, setDeliveries] = useState<OrderData[]>([]);
+
+  // Fetch deliveries on mount
+  useEffect(() => {
+    const fetchDeliveries = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch('http://localhost:4000/api/deliveries');
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setDeliveries(result.data || []);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load deliveries';
+        setError(errorMsg);
+        console.error('Fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDeliveries();
+  }, []);
 
   const filteredDeliveries = useMemo(() => {
     return deliveries
@@ -133,7 +138,19 @@ export default function KonfirmasiPenerimaanInteraktif() {
     setIsSubmitting(true);
 
     try {
-      await new Promise((res) => setTimeout(res, 1500));
+      const response = await fetch(`http://localhost:4000/api/deliveries/${selectedOrder.id}/confirm`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ units: selectedOrder.unit }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
 
       setDeliveries((prev) =>
         prev.map((d) =>
@@ -149,10 +166,11 @@ export default function KonfirmasiPenerimaanInteraktif() {
       });
 
       handleCloseInspect();
-    } catch (error) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to confirm delivery';
       notifications.show({
         title: 'Gagal Memperbarui',
-        message: 'Terjadi kesalahan koneksi ke server.',
+        message: errorMsg,
         color: 'red',
         icon: <IconX size={18} />,
       });
@@ -166,6 +184,11 @@ export default function KonfirmasiPenerimaanInteraktif() {
 
   return (
     <Container size="100%" py="xl">
+      {error && (
+        <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red" mb="xl">
+          {error}
+        </Alert>
+      )}
       <Stack gap="xl">
         <Group justify="space-between" align="flex-end">
           <Box>

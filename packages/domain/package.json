@@ -15,11 +15,11 @@
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx}\""
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.8.2",
+    "@types/node": "^25.3.3",
     "eslint": "^9",
     "prettier": "^3.2.5",
-    "rimraf": "^6"
+    "rimraf": "^6",
+    "typescript": "^5.8.2"
   }
 }

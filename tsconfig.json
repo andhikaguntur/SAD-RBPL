@@ -12,7 +12,9 @@
 		"composite": true,
 		"declaration": true,
 		"declarationMap": true,
-		"types": ["node"],
+		"types": [
+			"node"
+		],
 		"paths": {
 			"@domain/*": [
 				"packages/domain/src/*"

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, Badge, 
   TextInput, ActionIcon, Modal, Select, Container, 
   Table, Divider, Avatar,
-  SimpleGrid
+  SimpleGrid, Alert
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
@@ -14,61 +14,60 @@ import {
   IconAlertCircle, IconFilter
 } from '@tabler/icons-react';
 
-// Mock Data Log (Gabungan RF-003, RF-010, RF-012)
-const ACTIVITY_LOGS = [
-  { 
-    id: 'LOG-881', 
-    timestamp: '19 Feb 2026, 14:20', 
-    admin: 'Budi Santoso', 
-    action: 'Validasi Pembayaran', 
-    target: 'INV-2026-001',
-    type: 'finance',
-    detail: { old: 'Menunggu', new: 'Lunas', note: 'Bukti transfer valid (BCA)' }
-  },
-  { 
-    id: 'LOG-880', 
-    timestamp: '19 Feb 2026, 11:05', 
-    admin: 'Siti Aminah', 
-    action: 'Update Status Mesin', 
-    target: 'MSN-501 (Genset 50kVA)',
-    type: 'logistic',
-    detail: { old: 'Dikirim', new: 'Disewa', note: 'Unit diterima di Site Sleman' }
-  },
-  { 
-    id: 'LOG-879', 
-    timestamp: '18 Feb 2026, 16:45', 
-    admin: 'Budi Santoso', 
-    action: 'Penyesuaian Harga', 
-    target: 'REQ-092',
-    type: 'pricing',
-    detail: { old: 'Rp 5.500.000', new: 'Rp 5.250.000', note: 'Diskon loyalitas pelanggan 5%' }
-  },
-  { 
-    id: 'LOG-878', 
-    timestamp: '18 Feb 2026, 09:12', 
-    admin: 'Sistem Otomatis', 
-    action: 'Pembatalan Otomatis', 
-    target: 'REQ-088',
-    type: 'system',
-    detail: { old: 'Menunggu', new: 'Dibatalkan', note: 'Melebihi batas waktu upload bukti (24 jam)' }
-  },
-];
+interface ActivityLog {
+  id: string;
+  timestamp: string;
+  admin: string;
+  action: string;
+  target: string;
+  type: 'finance' | 'logistic' | 'pricing' | 'system';
+  detail: Record<string, any>;
+}
 
 export default function AuditLogSystem() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string | null>('Semua');
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
 
+  // Fetch logs on mount
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch('http://localhost:4000/api/logs');
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setLogs(result.data || []);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load logs';
+        setError(errorMsg);
+        console.error('Fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, []);
+
   const filteredLogs = useMemo(() => {
-    return ACTIVITY_LOGS.filter(log => {
+    return logs.filter(log => {
       const matchSearch = log.admin.toLowerCase().includes(search.toLowerCase()) || log.target.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === 'Semua' || log.type === typeFilter;
       return matchSearch && matchType;
     });
-  }, [search, typeFilter]);
+  }, [search, typeFilter, logs]);
 
-  const handleOpenLog = (log: any) => {
+  const handleOpenLog = (log: ActivityLog) => {
     setSelectedLog(log);
     open();
   };
@@ -76,6 +75,12 @@ export default function AuditLogSystem() {
   return (
     <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
+
         {/* --- HEADER --- */}
         <Group justify="space-between">
           <Box>
@@ -83,7 +88,7 @@ export default function AuditLogSystem() {
             <Text c="dimmed" size="sm">Rekaman jejak digital seluruh operasional staff CV SAD.</Text>
           </Box>
           <Badge size="xl" variant="light" color="blue" leftSection={<IconHistory size={16}/>}>
-            {ACTIVITY_LOGS.length} Total Aksi
+            {logs.length} Total Aksi
           </Badge>
         </Group>
 

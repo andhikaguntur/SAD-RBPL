@@ -1,52 +1,78 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
   TextInput, Modal, Select, Container, 
-  Table, Divider} from '@mantine/core';
+  Table, Divider, Alert} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
   IconSearch, IconDownload, 
   IconPrinter, 
-  IconX, IconFileDescription} from '@tabler/icons-react';
+  IconX, IconFileDescription, IconAlertCircle} from '@tabler/icons-react';
 
-// Data Mockup
-const ARCHIVE_DATA = [
-  { 
-    id: 'PO-2026-001', date: '20 Feb 2026', client: 'PT. Maju Jaya', 
-    address: 'Jl. Kaliurang KM 12, Sleman', total: 15500000, 
-    status: 'Selesai', items: [
-        { name: 'Sewa Genset 50kVA', qty: 1, price: 15000000 },
-        { name: 'Biaya Mobilisasi', qty: 1, price: 500000 }
-    ]
-  },
-  { 
-    id: 'PO-2026-002', date: '18 Jan 2026', client: 'CV. Bangun Pagi', 
-    address: 'Jl. Godean, Yogyakarta', total: 8200000, 
-    status: 'Dibatalkan', items: [
-        { name: 'Sewa Genset 25kVA', qty: 1, price: 8200000 }
-    ]
-  },
-];
+interface POItem {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+interface PurchaseOrder {
+  id: string;
+  date: string;
+  client: string;
+  address: string;
+  total: number;
+  status: 'Selesai' | 'Dibatalkan';
+  items: POItem[];
+}
 
 export default function ArsipPurchaseOrderPro() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>('Semua');
-  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  // Fetch POs on mount
+  useEffect(() => {
+    const fetchPOs = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch('http://localhost:4000/api/purchase-orders');
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        setPurchaseOrders(result.data || []);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load purchase orders';
+        setError(errorMsg);
+        console.error('Fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPOs();
+  }, []);
 
   // Logic Search & Filter
   const filteredData = useMemo(() => {
-    return ARCHIVE_DATA.filter(item => {
+    return purchaseOrders.filter(item => {
       const matchSearch = item.client.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === 'Semua' || item.status === filterStatus;
       return matchSearch && matchStatus;
     });
-  }, [search, filterStatus]);
+  }, [search, filterStatus, purchaseOrders]);
 
-  const handleOpenInvoice = (po: any) => {
+  const handleOpenInvoice = (po: PurchaseOrder) => {
     setSelectedPO(po);
     open();
   };
@@ -85,6 +111,12 @@ export default function ArsipPurchaseOrderPro() {
   return (
     <Container size="100%" p="xl" bg="#fcfcfc">
       <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
+
         <Group justify="space-between">
           <Box>
             <Title order={2} fw={900} c="gray.8">Arsip Purchase Order</Title>
