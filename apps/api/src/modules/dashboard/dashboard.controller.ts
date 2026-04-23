@@ -12,4 +12,14 @@ export class DashboardController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  async getUserStats(req: Request, res: Response) {
+    try {
+      const { pelanggan } = req.params;
+      const data = await this.repository.getUserStats(pelanggan);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }

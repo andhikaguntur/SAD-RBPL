@@ -24,6 +24,27 @@ export class PembayaranController {
     }
   }
 
+  async getByPermintaanId(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const data = await this.repository.findByPermintaanId(id);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async updateProof(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { bukti } = req.body;
+      const data = await this.repository.updateProof(id, bukti);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   async updateStatus(req: Request, res: Response) {
     try {
       const { id } = req.params;

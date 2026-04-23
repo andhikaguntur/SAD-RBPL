@@ -57,4 +57,40 @@ export class PermintaanController {
             res.status(400).json({ success: false, message: error.message });
         }
     }
+
+    async getArchive(req: Request, res: Response) {
+        try {
+            const data = await this.repository.findArchive();
+            res.json({ success: true, data });
+        } catch (error: any) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    async getDispatchQueue(req: Request, res: Response) {
+        try {
+            const data = await this.repository.findDispatchQueue();
+            res.json({ success: true, data });
+        } catch (error: any) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    async getReports(req: Request, res: Response) {
+        try {
+            const data = await this.repository.findAll();
+            const reports = data.map(req => ({
+                id: req.idPermintaan,
+                pelanggan: req.pelanggan,
+                tanggal: req.tanggalFormat,
+                unit: req.mesin.map(m => m.mesin?.namaMesin).join(", "),
+                nilai: req.mesin.reduce((acc, m) => acc + (m.harga - m.diskon) * m.qty, 0),
+                statusBayar: req.status === "Lunas" ? "Lunas" : "Pending",
+                sopir: "N/A" // Placeholder as it's not in the main request type
+            }));
+            res.json({ success: true, data: reports });
+        } catch (error: any) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
 }

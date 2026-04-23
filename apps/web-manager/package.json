@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mantine/core": "^8.3.14",
+    "@mantine/hooks": "^8.3.14",
+    "@mantine/notifications": "^8.3.14",
+    "@tabler/icons-react": "^3.41.1",
     "glob": "^13.0.3",
     "inflight": "^1.0.6",
     "lru-cache": "^11.2.6",

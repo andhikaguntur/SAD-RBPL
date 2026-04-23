@@ -1,61 +1,70 @@
 'use client'
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, Badge, 
   TextInput, ActionIcon, Modal, Select, Container, 
   Table, Divider, Avatar,
-  SimpleGrid
+  SimpleGrid, Alert, LoadingOverlay
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 import { 
   IconSearch, IconHistory, 
   IconInfoCircle, 
   IconAlertCircle, IconFilter
 } from '@tabler/icons-react';
 
-// Mock Data Log (Gabungan RF-003, RF-010, RF-012)
-import { useEffect } from 'react';
+interface ActivityLog {
+  id: string;
+  timestamp: string;
+  admin: string;
+  action: string;
+  target: string;
+  type: 'finance' | 'logistic' | 'pricing' | 'system';
+  detail: Record<string, any>;
+}
 
 export default function AuditLogSystem() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string | null>('Semua');
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
-  const [loading, setLoading] = useState(true);
-
-  const [logs, setLogs] = useState<any[]>([]);
 
   const fetchLogs = async () => {
-    setLoading(true);
+    setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch('http://localhost:4000/api/audit-log');
       const json = await res.json();
       if (json.success) {
         setLogs(json.data.map((l: any) => {
-          // Parse timestamp to readable format
           const d = new Date(l.timestamp);
           const timeStr = d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
           
           return {
             id: l.idLog,
             timestamp: timeStr,
-            admin: 'Admin', // Default actor
+            admin: 'Admin',
             action: l.aksi,
             target: l.idTarget,
             type: l.entitasTarget === 'Pembayaran' ? 'finance' : l.entitasTarget === 'Pengiriman' ? 'logistic' : 'system',
             detail: { 
               old: 'Data Masuk', 
-              new: l.keterangan, 
+              new: l.keterangan || '-', 
               note: `Aksi ${l.aksi} pada ${l.entitasTarget}` 
             }
           };
         }));
       }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal memuat log audit', color: 'red' });
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat log audit');
+      notifications.show({ title: 'Error', message: err.message, color: 'red' });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -65,13 +74,14 @@ export default function AuditLogSystem() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
-      const matchSearch = log.admin.toLowerCase().includes(search.toLowerCase()) || log.target.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = (log.admin || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (log.target || '').toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === 'Semua' || log.type === typeFilter;
       return matchSearch && matchType;
     });
   }, [search, typeFilter, logs]);
 
-  const handleOpenLog = (log: any) => {
+  const handleOpenLog = (log: ActivityLog) => {
     setSelectedLog(log);
     open();
   };
@@ -79,6 +89,12 @@ export default function AuditLogSystem() {
   return (
     <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
+
         {/* --- HEADER --- */}
         <Group justify="space-between">
           <Box>
@@ -86,7 +102,7 @@ export default function AuditLogSystem() {
             <Text c="dimmed" size="sm">Rekaman jejak digital seluruh operasional staff CV SAD.</Text>
           </Box>
           <Badge size="xl" variant="light" color="blue" leftSection={<IconHistory size={16}/>}>
-            {ACTIVITY_LOGS.length} Total Aksi
+            {logs.length} Total Aksi
           </Badge>
         </Group>
 
@@ -115,7 +131,8 @@ export default function AuditLogSystem() {
         </Paper>
 
         {/* --- LOG TABLE --- */}
-        <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden' }}>
+        <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden', position: 'relative' }}>
+          <LoadingOverlay visible={isLoading} />
           <Table verticalSpacing="md" highlightOnHover>
             <Table.Thead bg="gray.0">
               <Table.Tr>
@@ -135,7 +152,7 @@ export default function AuditLogSystem() {
                   <Table.Td>
                     <Group gap="xs">
                       <Avatar size="xs" radius="xl" color={log.admin === 'Sistem Otomatis' ? 'gray' : 'blue'}>
-                        {log.admin[0]}
+                        {(log.admin || 'A')[0]}
                       </Avatar>
                       <Text size="sm" fw={600}>{log.admin}</Text>
                     </Group>
@@ -160,7 +177,7 @@ export default function AuditLogSystem() {
         </Paper>
       </Stack>
 
-      {/* --- MODAL DETAIL AUDIT: Deep Inspection --- */}
+      {/* --- MODAL DETAIL AUDIT --- */}
       <Modal 
         opened={opened} onClose={close} 
         title={<Text fw={800}>Detail Jejak Audit</Text>}

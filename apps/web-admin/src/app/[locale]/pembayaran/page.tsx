@@ -1,9 +1,10 @@
 'use client'
-import { useState, useMemo } from 'react';
+
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Table, Badge, Group, Text, Paper, Title, Stack, 
   Button, Box, Image, TextInput, Drawer, SimpleGrid, 
-  ScrollArea, Divider, Card, Modal, Center
+  ScrollArea, Divider, Card, Modal, Center, Alert, LoadingOverlay
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -18,11 +19,9 @@ interface PaymentData {
   pelanggan: string;
   total: number;
   tanggal: string;
-  status: 'Menunggu Validasi' | 'Lunas' | 'Ditolak';
+  status: 'Menunggu Validasi' | 'Lunas' | 'Ditolak' | string;
   bukti: string;
 }
-
-import { useEffect } from 'react';
 
 export default function ValidasiPembayaranUX() {
   const [opened, { open, close }] = useDisclosure(false);
@@ -33,29 +32,33 @@ export default function ValidasiPembayaranUX() {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingAction, setPendingAction] = useState<'Lunas' | 'Ditolak' | null>(null);
-  const [loading, setLoading] = useState(true);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [payments, setPayments] = useState<PaymentData[]>([]);
 
   const fetchPayments = async () => {
-    setLoading(true);
+    setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch('http://localhost:4000/api/pembayaran');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setPayments(json.data.map((p: any) => ({
           id: p.id,
-          pelanggan: p.permintaan?.pelanggan || 'PT. Maju Jaya',
+          pelanggan: p.permintaan?.pelanggan || 'User',
           total: p.total,
           tanggal: p.tanggal,
           status: p.status,
           bukti: p.bukti
         })));
       }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal memuat data pembayaran', color: 'red' });
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat data pembayaran');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -116,13 +119,14 @@ export default function ValidasiPembayaranUX() {
   const processStatus = async () => {
     if (!selectedPayment || !pendingAction) return;
 
+    setIsProcessing(true);
     try {
       const res = await fetch(`http://localhost:4000/api/pembayaran/${selectedPayment.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           status: pendingAction,
-          reason: rejectionReason // Audit info if needed
+          reason: rejectionReason 
         })
       });
 
@@ -147,216 +151,223 @@ export default function ValidasiPembayaranUX() {
         color: 'red',
         icon: <IconX size={18} />,
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   return (
-    <Stack gap="xl">
-      <Box>
-        <Title order={2} fw={800} c="blue.9">Verifikasi Pembayaran</Title>
-        <Text c="dimmed" size="sm">Validasi bukti transfer untuk aktivasi siklus penyewaan.</Text>
-      </Box>
+    <Box p="xl">
+      <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
 
-      <Paper withBorder radius="md" shadow="xs" style={{ overflow: 'hidden' }}>
-        <Box p="md" bg="gray.0">
-          <TextInput 
-            placeholder="Cari ID Invoice atau Nama Pelanggan..." 
-            leftSection={<IconSearch size={18} stroke={1.5} />} 
-            variant="filled"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.currentTarget.value)}
-          />
+        <Box>
+          <Title order={2} fw={800} c="blue.9">Verifikasi Pembayaran</Title>
+          <Text c="dimmed" size="sm">Validasi bukti transfer untuk aktivasi siklus penyewaan.</Text>
         </Box>
-        
-        <Box style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="md" highlightOnHover stickyHeader>
-            <Table.Thead bg="gray.0">
-              <Table.Tr>
-                <Table.Th>ID Invoice</Table.Th>
-                <Table.Th>Pelanggan</Table.Th>
-                <Table.Th>Total Tagihan</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th ta="right">Aksi</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {filteredPayments.map((p) => {
-                const isPending = p.status === 'Menunggu Validasi';
-                return (
-                  <Table.Tr key={p.id} style={{ opacity: isPending ? 1 : 0.6 }}>
-                    <Table.Td fw={700}>{p.id}</Table.Td>
-                    <Table.Td fw={500}>{p.pelanggan}</Table.Td>
-                    <Table.Td fw={700}>Rp {p.total.toLocaleString('id-ID')}</Table.Td>
-                    <Table.Td>
-                      <Badge 
-                        variant={isPending ? 'filled' : 'light'} 
-                        color={p.status === 'Lunas' ? 'green' : p.status === 'Ditolak' ? 'red' : 'orange'}
-                      >
-                        {p.status}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td ta="right">
+
+        <Paper withBorder radius="md" shadow="xs" style={{ overflow: 'hidden' }}>
+          <Box p="md" bg="gray.0">
+            <TextInput 
+              placeholder="Cari ID Invoice atau Nama Pelanggan..." 
+              leftSection={<IconSearch size={18} stroke={1.5} />} 
+              variant="filled"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            />
+          </Box>
+          
+          <Box style={{ overflowX: 'auto', position: 'relative' }}>
+            <LoadingOverlay visible={isLoading} />
+            <Table verticalSpacing="md" highlightOnHover stickyHeader>
+              <Table.Thead bg="gray.0">
+                <Table.Tr>
+                  <Table.Th>ID Invoice</Table.Th>
+                  <Table.Th>Pelanggan</Table.Th>
+                  <Table.Th>Total Tagihan</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th ta="right">Aksi</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {filteredPayments.map((p) => {
+                  const isPending = p.status === 'Menunggu Validasi' || p.status === 'Menunggu';
+                  return (
+                    <Table.Tr key={p.id} style={{ opacity: isPending ? 1 : 0.6 }}>
+                      <Table.Td fw={700}>{p.id}</Table.Td>
+                      <Table.Td fw={500}>{p.pelanggan}</Table.Td>
+                      <Table.Td fw={700}>Rp {p.total.toLocaleString('id-ID')}</Table.Td>
+                      <Table.Td>
+                        <Badge 
+                          variant={isPending ? 'filled' : 'light'} 
+                          color={p.status === 'Lunas' ? 'green' : p.status === 'Ditolak' ? 'red' : 'orange'}
+                        >
+                          {p.status}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Button 
+                          variant="light" 
+                          size="xs" 
+                          color={isPending ? 'blue' : 'gray'} 
+                          leftSection={<IconEye size={14} />} 
+                          onClick={() => handleReview(p)}
+                        >
+                          {isPending ? 'Validasi' : 'Detail'}
+                        </Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Box>
+        </Paper>
+
+        <Drawer
+          opened={opened}
+          onClose={handleCloseAll}
+          position="right"
+          size="85%"
+          title={<Text fw={800} size="lg">Panel Verifikasi Pembayaran</Text>}
+          padding={0}
+          overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+        >
+          {selectedPayment && (
+            <Box style={{ height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column' }}>
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing={0} style={{ flex: 1, minHeight: 0 }}>
+                
+                <Stack gap={0} bg="gray.1" style={{ height: '100%', overflow: 'hidden' }}>
+                  <Box p="md" bg="white" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+                    <Group justify="space-between">
+                      <Text fw={700} size="sm">File Bukti Transfer</Text>
                       <Button 
                         variant="light" 
                         size="xs" 
-                        color={isPending ? 'blue' : 'gray'} 
-                        leftSection={<IconEye size={14} />} 
-                        onClick={() => handleReview(p)}
+                        leftSection={<IconDownload size={14} />}
+                        onClick={() => window.open(selectedPayment.bukti, '_blank')}
                       >
-                        {isPending ? 'Validasi' : 'Detail'}
+                        Buka Resolusi Penuh
                       </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
-        </Box>
-      </Paper>
-
-      <Drawer
-        opened={opened}
-        onClose={handleCloseAll}
-        position="right"
-        size="85%"
-        title={<Text fw={800} size="lg">Panel Verifikasi Pembayaran</Text>}
-        padding={0}
-        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
-      >
-        {selectedPayment && (
-          <Box style={{ height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column' }}>
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing={0} style={{ flex: 1, minHeight: 0 }}>
-              
-              <Stack gap={0} bg="gray.1" style={{ height: '100%', overflow: 'hidden' }}>
-                <Box p="md" bg="white" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
-                  <Group justify="space-between">
-                    <Text fw={700} size="sm">File Bukti Transfer</Text>
-                    <Button 
-                      variant="light" 
-                      size="xs" 
-                      leftSection={<IconDownload size={14} />}
-                      onClick={() => window.open(selectedPayment.bukti, '_blank')}
-                    >
-                      Buka Resolusi Penuh
-                    </Button>
-                  </Group>
-                </Box>
-                <Center style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
-                  <Card withBorder radius="md" shadow="sm" p="xs" style={{ height: '100%', width: '100%', display: 'flex' }}>
-                    <Image 
-                      src={selectedPayment.bukti} 
-                      alt="Bukti" 
-                      fit="contain" 
-                      h="100%" 
-                      w="100%"
-                      fallbackSrc="https://placehold.co/400x600?text=Gambar+Tidak+Tersedia"
-                    />
-                  </Card>
-                </Center>
-              </Stack>
-
-              <Stack gap={0} bg="white" style={{ height: '100%', borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
-                <ScrollArea style={{ flex: 1 }} p="xl">
-                  <Text fw={700} size="xs" c="dimmed" tt="uppercase" mb="lg">Informasi Tagihan</Text>
-                  
-                  <Paper withBorder p="xl" radius="md" bg="blue.0" mb="xl">
-                    <Stack gap="md">
-                      <Group justify="space-between">
-                        <Box>
-                          <Text size="xs" c="dimmed" fw={700}>PELANGGAN</Text>
-                          <Text fw={800} size="lg" c="blue.9">{selectedPayment.pelanggan}</Text>
-                        </Box>
-                        <IconReceipt2 size={40} color="var(--mantine-color-blue-6)" stroke={1.5} />
-                      </Group>
-                      
-                      <Divider variant="dashed" />
-                      
-                      <SimpleGrid cols={2}>
-                        <Box>
-                          <Text size="xs" c="dimmed" fw={700}>ID INVOICE</Text>
-                          <Text fw={600}>{selectedPayment.id}</Text>
-                        </Box>
-                        <Box>
-                          <Text size="xs" c="dimmed" fw={700}>TANGGAL INPUT</Text>
-                          <Text fw={600}>{selectedPayment.tanggal}</Text>
-                        </Box>
-                      </SimpleGrid>
-
-                      <Box>
-                        <Text size="xs" c="dimmed" fw={700}>TOTAL NOMINAL</Text>
-                        <Text fw={900} size="32px" c="blue.9">
-                          Rp {selectedPayment.total.toLocaleString('id-ID')}
-                        </Text>
-                      </Box>
-                    </Stack>
-                  </Paper>
-
-                  {showRejectInput && (
-                    <TextInput 
-                      label="Alasan Penolakan"
-                      placeholder="Contoh: Bukti buram atau nominal salah"
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.currentTarget.value)}
-                      error={!rejectionReason && "Wajib diisi"}
-                      size="md"
-                      autoFocus
-                    />
-                  )}
-                </ScrollArea>
-
-                <Box p="xl" bg="gray.0" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-                  <Stack gap="md">
-                    {selectedPayment.status === 'Menunggu Validasi' ? (
-                      <Group grow gap="md">
-                        {!showRejectInput ? (
-                          <>
-                            <Button variant="outline" color="red" size="lg" onClick={() => setShowRejectInput(true)}>Tolak</Button>
-                            <Button color="blue" size="lg" onClick={() => triggerConfirm('Lunas')}>Konfirmasi Lunas</Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button variant="subtle" color="gray" size="lg" onClick={() => setShowRejectInput(false)}>Batal</Button>
-                            <Button color="red" size="lg" disabled={!rejectionReason.trim()} onClick={() => triggerConfirm('Ditolak')}>Kirim Penolakan</Button>
-                          </>
-                        )}
-                      </Group>
-                    ) : (
-                      <Button variant="light" color="gray" fullWidth size="lg" onClick={handleCloseAll}>Tutup Detail</Button>
-                    )}
-                    
-                    <Group gap="xs" justify="center">
-                      <IconAlertCircle size={16} color="gray" />
-                      <Text size="xs" c="dimmed">Tindakan ini tercatat di log audit sistem.</Text>
                     </Group>
-                  </Stack>
-                </Box>
-              </Stack>
-            </SimpleGrid>
-          </Box>
-        )}
-      </Drawer>
+                  </Box>
+                  <Center style={{ flex: 1, padding: '24px', overflow: 'hidden' }}>
+                    <Card withBorder radius="md" shadow="sm" p="xs" style={{ height: '100%', width: '100%', display: 'flex' }}>
+                       <Image 
+                          src={selectedPayment.bukti} 
+                          alt="Bukti" 
+                          fit="contain" 
+                          h="100%" 
+                          w="100%"
+                          fallbackSrc="https://placehold.co/400x600?text=Gambar+Tidak+Tersedia"
+                        />
+                    </Card>
+                  </Center>
+                </Stack>
 
-      <Modal 
-        opened={confirmOpened} 
-        onClose={closeConfirm} 
-        centered 
-        title={<Text fw={800}>Konfirmasi Akhir</Text>}
-        radius="md"
-        size="sm"
-      >
-        <Stack align="center" gap="lg">
-          <IconAlertTriangle size={60} />
-          <Text fw={700} ta="center">
-            Status invoice {selectedPayment?.id} akan diubah menjadi {pendingAction}.
-          </Text>
-          <Group grow w="100%">
-            <Button variant="light" color="gray" onClick={closeConfirm}>Batal</Button>
-            <Button color={pendingAction === 'Lunas' ? 'blue' : 'red'} onClick={processStatus}>
-              Ya, Eksekusi
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Stack>
+                <Stack gap={0} bg="white" style={{ height: '100%', borderLeft: '1px solid var(--mantine-color-gray-3)' }}>
+                  <ScrollArea style={{ flex: 1 }} p="xl">
+                    <Text fw={700} size="xs" c="dimmed" tt="uppercase" mb="lg">Informasi Tagihan</Text>
+                    
+                    <Paper withBorder p="xl" radius="md" bg="blue.0" mb="xl">
+                      <Stack gap="md">
+                        <Group justify="space-between">
+                          <Box>
+                            <Text size="xs" c="dimmed" fw={700}>PELANGGAN</Text>
+                            <Text fw={800} size="lg" c="blue.9">{selectedPayment.pelanggan}</Text>
+                          </Box>
+                          <IconReceipt2 size={40} color="var(--mantine-color-blue-6)" stroke={1.5} />
+                        </Group>
+                        
+                        <Divider variant="dashed" />
+                        
+                        <SimpleGrid cols={2}>
+                          <Box>
+                            <Text size="xs" c="dimmed" fw={700}>ID INVOICE</Text>
+                            <Text fw={600}>{selectedPayment.id}</Text>
+                          </Box>
+                          <Box>
+                            <Text size="xs" c="dimmed" fw={700}>TANGGAL INPUT</Text>
+                            <Text fw={600}>{selectedPayment.tanggal}</Text>
+                          </Box>
+                        </SimpleGrid>
+
+                        <Box>
+                          <Text size="xs" c="dimmed" fw={700}>TOTAL NOMINAL</Text>
+                          <Text fw={900} size="32px" c="blue.9">
+                            Rp {selectedPayment.total.toLocaleString('id-ID')}
+                          </Text>
+                        </Box>
+                      </Stack>
+                    </Paper>
+
+                    {showRejectInput && (
+                      <TextInput 
+                        label="Alasan Penolakan"
+                        placeholder="Contoh: Bukti buram atau nominal salah"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.currentTarget.value)}
+                        error={!rejectionReason && "Wajib diisi"}
+                        size="md"
+                        autoFocus
+                      />
+                    )}
+                  </ScrollArea>
+
+                  <Box p="xl" bg="gray.0" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+                    <Stack gap="md">
+                      {(selectedPayment.status === 'Menunggu Validasi' || selectedPayment.status === 'Menunggu') ? (
+                        <Group grow gap="md">
+                          {!showRejectInput ? (
+                            <>
+                              <Button variant="outline" color="red" size="lg" onClick={() => setShowRejectInput(true)}>Tolak</Button>
+                              <Button color="blue" size="lg" onClick={() => triggerConfirm('Lunas')}>Konfirmasi Lunas</Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="subtle" color="gray" size="lg" onClick={() => setShowRejectInput(false)}>Batal</Button>
+                              <Button color="red" size="lg" disabled={!rejectionReason.trim()} onClick={() => triggerConfirm('Ditolak')}>Kirim Penolakan</Button>
+                            </>
+                          )}
+                        </Group>
+                      ) : (
+                        <Button variant="light" color="gray" fullWidth size="lg" onClick={handleCloseAll}>Tutup Detail</Button>
+                      )}
+                    </Stack>
+                  </Box>
+                </Stack>
+              </SimpleGrid>
+            </Box>
+          )}
+        </Drawer>
+
+        <Modal 
+          opened={confirmOpened} 
+          onClose={closeConfirm} 
+          centered 
+          title={<Text fw={800}>Konfirmasi Akhir</Text>}
+          radius="md"
+          size="sm"
+        >
+          <LoadingOverlay visible={isProcessing} />
+          <Stack align="center" gap="lg">
+            <IconAlertTriangle size={60} />
+            <Text fw={700} ta="center">
+              Status invoice {selectedPayment?.id} akan diubah menjadi {pendingAction}.
+            </Text>
+            <Group grow w="100%">
+              <Button variant="light" color="gray" onClick={closeConfirm} disabled={isProcessing}>Batal</Button>
+              <Button color={pendingAction === 'Lunas' ? 'blue' : 'red'} onClick={processStatus} loading={isProcessing}>
+                Ya, Eksekusi
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+      </Stack>
+    </Box>
   );
 }

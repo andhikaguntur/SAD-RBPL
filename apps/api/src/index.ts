@@ -7,6 +7,10 @@ import { pembayaranRouter } from "./modules/pembayaran/pembayaran.router";
 import { pengirimanRouter } from "./modules/pengiriman/pengiriman.router";
 import { auditLogRouter } from "./modules/auditLog/auditLog.router";
 import { dashboardRouter } from "./modules/dashboard/dashboard.router";
+import { authRouter } from "./modules/auth/auth.router";
+import { PermintaanController } from "./modules/permintaanSewa/permintaanSewa.controller";
+import { AuditLogController } from "./modules/auditLog/auditLog.controller";
+import { PengirimanController } from "./modules/pengiriman/pengiriman.controller";
 
 const app = express();
 app.use(cors());
@@ -18,6 +22,18 @@ app.use("/api/pembayaran", pembayaranRouter);
 app.use("/api/pengiriman", pengirimanRouter);
 app.use("/api/audit-log", auditLogRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/auth", authRouter);
+
+// Sugar routes for Web Manager compatibility
+const permintaanController = new PermintaanController();
+const auditLogController = new AuditLogController();
+const pengirimanController = new PengirimanController();
+
+app.get("/api/po-archive", permintaanController.getArchive.bind(permintaanController) as any);
+app.get("/api/dispatch-queue", permintaanController.getDispatchQueue.bind(permintaanController) as any);
+app.get("/api/logs", auditLogController.getAll.bind(auditLogController) as any);
+app.get("/api/reports", permintaanController.getReports.bind(permintaanController) as any);
+app.get("/api/delivery-tracks", pengirimanController.getDeliveryTracks.bind(pengirimanController) as any);
 
 app.listen(4000, () => {
   console.log("Backend running at http://localhost:4000");

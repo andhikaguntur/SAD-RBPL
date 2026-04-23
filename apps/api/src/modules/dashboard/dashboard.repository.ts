@@ -73,4 +73,54 @@ export class DashboardRepository {
       }))
     };
   }
+
+  async getUserStats(pelanggan: string) {
+    const [
+      activeRentals,
+      pendingQuotes,
+      unpaidInvoices,
+      totalSpent,
+      recentActivities
+    ] = await Promise.all([
+      // Active rentals (status 'Disewa' or 'Diterima')
+      prisma.permintaanSewa.count({
+        where: { pelanggan, status: { in: ['Disewa', 'Diterima'] } }
+      }),
+      // Pending quotes (status 'Menunggu' or 'Menunggu Validasi')
+      prisma.permintaanSewa.count({
+        where: { pelanggan, status: { in: ['Menunggu', 'Menunggu Validasi'] } }
+      }),
+      // Unpaid invoices (where payment status exists and is not 'Lunas')
+      prisma.pembayaran.count({
+        where: { permintaan: { pelanggan }, NOT: { status: 'Lunas' } }
+      }),
+      // Total spent (sum of all 'Lunas' payments)
+      prisma.pembayaran.aggregate({
+        where: { permintaan: { pelanggan }, status: 'Lunas' },
+        _sum: { total: true }
+      }),
+      // Recent activities (last 5 requests)
+      prisma.permintaanSewa.findMany({
+        where: { pelanggan },
+        take: 5,
+        orderBy: { idPermintaan: 'desc' },
+        include: { pengiriman: true, pembayaran: true }
+      })
+    ]);
+
+    return {
+      activeRentals,
+      pendingQuotes,
+      unpaidInvoices,
+      totalSpent: totalSpent._sum.total || 1, // ensure at least 1 for display logic if needed
+      recentActivities: recentActivities.map(a => ({
+        id: a.idPermintaan,
+        status: a.status,
+        date: a.tanggalFormat,
+        location: a.lokasi,
+        pembayaran: a.pembayaran[0] || null,
+        pengiriman: a.pengiriman[0] || null
+      }))
+    };
+  }
 }

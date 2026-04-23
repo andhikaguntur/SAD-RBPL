@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react';
-import {
-  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge,
-  TextInput, Card, ThemeIcon, Drawer, Select,
-  Container, SegmentedControl, Table, Divider, LoadingOverlay, UnstyledButton
+import { 
+  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
+  TextInput, Card, ThemeIcon, Drawer, Select, 
+  Container, SegmentedControl, Table, Divider, LoadingOverlay, Alert, UnstyledButton, Center
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -15,7 +15,6 @@ import {
   IconHistory
 } from '@tabler/icons-react';
 
-// Data Mockup diubah menjadi fetching dari API
 export default function FleetInventorySAD() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
@@ -23,17 +22,18 @@ export default function FleetInventorySAD() {
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [machines, setMachines] = useState<any[]>([]);
 
-  // Fetch dari Backend
   const fetchMachines = async () => {
+    setIsInitialLoading(true);
+    setError(null);
     try {
       const res = await fetch("http://localhost:4000/api/mesin");
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
-        // Map backend properties to frontend property shapes just in case,
-        // or directly use backend shape. 
-        // Backend shape: idMesin, namaMesin, kapasitas, status, lokasi, lastService, pelanggan
         const mapped = json.data.map((m: any) => ({
           id: m.idMesin,
           model: m.namaMesin,
@@ -45,8 +45,10 @@ export default function FleetInventorySAD() {
         }));
         setMachines(mapped);
       }
-    } catch (error) {
-      notifications.show({ title: 'Error API', message: 'Gagal mengambil data mesin', color: 'red' });
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat data mesin');
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -54,16 +56,15 @@ export default function FleetInventorySAD() {
     fetchMachines();
   }, []);
 
-  // Logic: Filtering
   const filteredData = useMemo(() => {
     return machines.filter(m => {
-      const matchSearch = m.id.toLowerCase().includes(search.toLowerCase()) || m.model.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = (m.id || '').toLowerCase().includes(search.toLowerCase()) || 
+                          (m.model || '').toLowerCase().includes(search.toLowerCase());
       const matchStatus = filter === 'Semua' || m.status === filter;
       return matchSearch && matchStatus;
     });
   }, [search, filter, machines]);
 
-  // Statistik 
   const stats = {
     total: machines.length,
     avail: machines.filter(m => m.status === 'Tersedia').length,
@@ -77,6 +78,8 @@ export default function FleetInventorySAD() {
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedUnit) return;
+    
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:4000/api/mesin/${selectedUnit.id}/status`, {
@@ -84,6 +87,7 @@ export default function FleetInventorySAD() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         notifications.show({
@@ -92,13 +96,17 @@ export default function FleetInventorySAD() {
           color: 'blue',
           icon: <IconCircleCheck size={18} />
         });
-        await fetchMachines(); // Refresh data
+        await fetchMachines();
         closeDrawer();
       } else {
         notifications.show({ title: 'Gagal', message: data.message, color: 'red' });
       }
-    } catch (e) {
-      notifications.show({ title: 'Error', message: 'Gagal menghubungi server', color: 'red' });
+    } catch (error: any) {
+      notifications.show({ 
+        title: 'Error', 
+        message: error.message || 'Gagal menghubungi server', 
+        color: 'red'
+      });
     } finally {
       setLoading(false);
     }
@@ -107,8 +115,12 @@ export default function FleetInventorySAD() {
   return (
     <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
 
-        {/* --- 1. HEADER & EXPORT --- */}
         <Group justify="space-between" align="center">
           <Box>
             <Title order={2} fw={900} c="gray.8">Fleet Inventory Control</Title>
@@ -119,7 +131,6 @@ export default function FleetInventorySAD() {
           </Button>
         </Group>
 
-        {/* --- 2. SUMMARY STATS (Flat/Static) --- */}
         <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="md">
           <StatDisplay title="Total Armada" val={stats.total} color="blue" icon={<IconEngine />} />
           <StatDisplay title="Siap Sewa" val={stats.avail} color="green" icon={<IconCircleCheck />} />
@@ -127,7 +138,6 @@ export default function FleetInventorySAD() {
           <StatDisplay title="Maintenance" val={stats.fix} color="red" icon={<IconAlertCircle />} />
         </SimpleGrid>
 
-        {/* --- 3. SEARCH & CONTROL --- */}
         <Paper withBorder p="md" radius="md" bg="white">
           <Group justify="space-between">
             <Group style={{ flex: 1 }}>
@@ -155,81 +165,82 @@ export default function FleetInventorySAD() {
           </Group>
         </Paper>
 
-        {/* --- 4. DATA VIEW --- */}
-        {view === 'grid' ? (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-            {filteredData.map(m => (
-              <Card key={m.id} withBorder radius="md" padding="lg" bg="white">
-                <Card.Section withBorder inheritPadding py="xs" bg="gray.0">
-                  <Group justify="space-between">
-                    <Text fw={800} size="sm" c="blue.9">{m.id}</Text>
-                    <Badge variant="dot" color={getStatusColor(m.status)}>{m.status}</Badge>
-                  </Group>
-                </Card.Section>
+        <Box style={{ position: 'relative', minHeight: 200 }}>
+          <LoadingOverlay visible={isInitialLoading} />
+          {view === 'grid' ? (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+              {filteredData.map(m => (
+                <Card key={m.id} withBorder radius="md" padding="lg" bg="white">
+                  <Card.Section withBorder inheritPadding py="xs" bg="gray.0">
+                    <Group justify="space-between">
+                      <Text fw={800} size="sm" c="blue.9">{m.id}</Text>
+                      <Badge variant="dot" color={getStatusColor(m.status)}>{m.status}</Badge>
+                    </Group>
+                  </Card.Section>
 
-                <Stack gap="xs" mt="md" mb="xl">
-                  <Text size="sm" fw={700}>{m.model} • {m.cap}</Text>
-                  <Group gap={6}>
-                    <IconMapPin size={14} color="gray" />
-                    <Text size="xs" c="dimmed">{m.location}</Text>
-                  </Group>
-                  <Group gap={6}>
-                    <IconUser size={14} color="gray" />
-                    <Text size="xs" c="dimmed">{m.customer || 'Stock Internal'}</Text>
-                  </Group>
-                </Stack>
+                  <Stack gap="xs" mt="md" mb="xl">
+                    <Text size="sm" fw={700}>{m.model} • {m.cap}</Text>
+                    <Group gap={6}>
+                      <IconMapPin size={14} color="gray" />
+                      <Text size="xs" c="dimmed">{m.location}</Text>
+                    </Group>
+                    <Group gap={6}>
+                      <IconUser size={14} color="gray" />
+                      <Text size="xs" c="dimmed">{m.customer || 'Stock Internal'}</Text>
+                    </Group>
+                  </Stack>
 
-                <Button
-                  variant="light"
-                  fullWidth
-                  leftSection={<IconSettings size={16} />}
-                  onClick={() => handleManageUnit(m)}
-                >
-                  Kelola Aset
-                </Button>
-              </Card>
-            ))}
-          </SimpleGrid>
-        ) : (
-          <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden' }}>
-            <Table verticalSpacing="md" horizontalSpacing="lg">
-              <Table.Thead bg="gray.0">
-                <Table.Tr>
-                  <Table.Th>ID Unit</Table.Th>
-                  <Table.Th>Spesifikasi</Table.Th>
-                  <Table.Th>Lokasi</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th ta="right">Aksi</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredData.map(m => (
-                  <Table.Tr key={m.id}>
-                    <Table.Td fw={800} c="blue.8">{m.id}</Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={600}>{m.model}</Text>
-                      <Text size="xs" c="dimmed">{m.cap}</Text>
-                    </Table.Td>
-                    <Table.Td><Text size="xs">{m.location}</Text></Table.Td>
-                    <Table.Td><Badge color={getStatusColor(m.status)} variant="light">{m.status}</Badge></Table.Td>
-                    <Table.Td ta="right">
-                      <Button variant="subtle" size="xs" onClick={() => handleManageUnit(m)}>Manage</Button>
-                    </Table.Td>
+                  <Button
+                    variant="light"
+                    fullWidth
+                    leftSection={<IconSettings size={16} />}
+                    onClick={() => handleManageUnit(m)}
+                  >
+                    Kelola Aset
+                  </Button>
+                </Card>
+              ))}
+            </SimpleGrid>
+          ) : (
+            <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden' }}>
+              <Table verticalSpacing="md" horizontalSpacing="lg">
+                <Table.Thead bg="gray.0">
+                  <Table.Tr>
+                    <Table.Th>ID Unit</Table.Th>
+                    <Table.Th>Spesifikasi</Table.Th>
+                    <Table.Th>Lokasi</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th ta="right">Aksi</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Paper>
-        )}
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredData.map(m => (
+                    <Table.Tr key={m.id}>
+                      <Table.Td fw={800} c="blue.8">{m.id}</Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600}>{m.model}</Text>
+                        <Text size="xs" c="dimmed">{m.cap}</Text>
+                      </Table.Td>
+                      <Table.Td><Text size="xs">{m.location}</Text></Table.Td>
+                      <Table.Td><Badge color={getStatusColor(m.status)} variant="light">{m.status}</Badge></Table.Td>
+                      <Table.Td ta="right">
+                        <Button variant="subtle" size="xs" onClick={() => handleManageUnit(m)}>Manage</Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Paper>
+          )}
+        </Box>
       </Stack>
 
-      {/* --- 5. COMMAND CENTER DRAWER --- */}
       <Drawer
         opened={drawerOpened} onClose={closeDrawer} position="right" size="md"
         title={<Text fw={900} size="lg">Aset Control Panel</Text>}
         padding="xl"
       >
-        <LoadingOverlay visible={loading} overlayProps={{ blur: 1 }} />
+        <LoadingOverlay visible={loading} />
         {selectedUnit && (
           <Stack gap="xl">
             <Box>
@@ -278,15 +289,13 @@ export default function FleetInventorySAD() {
   );
 }
 
-// --- SUB-COMPONENTS ---
-
 function StatDisplay({ title, val, color, icon }: any) {
   return (
-    <Paper p="md" radius="md" style={{ border: '1px solid #e9ecef', backgroundColor: 'white' }}>
-      <Group justify="space-between" wrap="nowrap">
+    <Paper p="md" radius="md" withBorder>
+      <Group justify="space-between">
         <Box>
-          <Text size="xs" c="dimmed" fw={800} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{title}</Text>
-          <Text fw={900} size="xl" c="gray.8">{val} <Text span size="sm" fw={500} c="dimmed">Unit</Text></Text>
+          <Text size="xs" c="dimmed" fw={800} tt="uppercase">{title}</Text>
+          <Text fw={900} size="xl">{val} <Text span size="sm" fw={500} c="dimmed">Unit</Text></Text>
         </Box>
         <ThemeIcon size="xl" radius="md" variant="light" color={color}>{icon}</ThemeIcon>
       </Group>
@@ -306,19 +315,16 @@ function StatusActionButton({ label, icon, color, active, onClick }: any) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '8px',
-        transition: 'all 0.2s ease'
+        gap: '8px'
       }}
     >
       <ThemeIcon color={color} variant={active ? 'filled' : 'light'} size="lg">
         {icon}
       </ThemeIcon>
-      <Text size="xs" fw={700} c={active ? `${color}.9` : 'gray.7'}>{label}</Text>
+      <Text size="xs" fw={700}>{label}</Text>
     </UnstyledButton>
   );
 }
-
-// Gunakan UnstyledButton dari Mantine untuk custom button
 
 const getStatusColor = (s: string) => {
   switch (s) {

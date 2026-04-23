@@ -89,14 +89,34 @@ export class PermintaanRepository {
             include: { mesin: { include: { mesin: true } } }
         });
         
-        return data.map(d => ({
+        return data.map(d => this.mapToType(d));
+    }
+
+    async findArchive(): Promise<PermintaanSewaType[]> {
+        const data = await prisma.permintaanSewa.findMany({
+            where: { status: { in: ['Lunas', 'Dikirim', 'Diterima', 'Selesai'] } },
+            include: { mesin: { include: { mesin: true } } }
+        });
+        return data.map(d => this.mapToType(d));
+    }
+
+    async findDispatchQueue(): Promise<PermintaanSewaType[]> {
+        const data = await prisma.permintaanSewa.findMany({
+            where: { status: 'Lunas' },
+            include: { mesin: { include: { mesin: true } } }
+        });
+        return data.map(d => this.mapToType(d));
+    }
+
+    private mapToType(d: any): PermintaanSewaType {
+        return {
             idPermintaan: d.idPermintaan,
             pelanggan: d.pelanggan,
             durasi: d.durasi,
             lokasi: d.lokasi,
             status: d.status,
             tanggalFormat: d.tanggalFormat,
-            mesin: d.mesin.map(m => ({
+            mesin: d.mesin.map((m: any) => ({
                 idPermintaan: m.idPermintaan,
                 idMesin: m.idMesin,
                 qty: m.qty,
@@ -104,6 +124,6 @@ export class PermintaanRepository {
                 diskon: m.diskon,
                 mesin: m.mesin
             }))
-        }));
+        };
     }
 }

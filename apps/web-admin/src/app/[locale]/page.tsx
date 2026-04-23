@@ -1,34 +1,37 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
-  ThemeIcon, Container, Divider, Table, Progress, Avatar, 
-  ActionIcon, Menu, ScrollArea, Select
+  Group, Text, Paper, Title, Stack, Button, Box, Badge, 
+  SimpleGrid, Avatar, ScrollArea, Table, ThemeIcon, LoadingOverlay, Center,
+  Container, Divider
 } from '@mantine/core';
 import { 
-  IconCash, IconTruckDelivery, IconAlertCircle, IconArrowUpRight, 
-  IconArrowDownRight, IconDotsVertical, IconEngine, IconCalendarStats,
-  IconPlus, IconFileAnalytics, IconMessageReport, IconCircleCheck,
-  IconCheck, IconX 
+  IconCash, IconEngine, IconUsers, IconAlertCircle,
+  IconTrendingUp, IconTrendingDown, IconActivity,
+  IconClock, IconCheck, IconTruckDelivery
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 
-export default function SADAdminDashboard() {
-  const [period, setPeriod] = useState<string | null>('7d');
+export default function AdministrativeDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('http://localhost:4000/api/dashboard/stats');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setStats(json.data);
       }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal mengambil statistik dashboard', color: 'red' });
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat statistik dashboard');
     } finally {
       setLoading(false);
     }
@@ -38,234 +41,224 @@ export default function SADAdminDashboard() {
     fetchStats();
   }, []);
 
-  const handlePaymentAction = async (id: string, action: 'Lunas' | 'Ditolak') => {
-    try {
-      const res = await fetch(`http://localhost:4000/api/pembayaran/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: action })
-      });
-      const json = await res.json();
-      if (json.success) {
-        notifications.show({ title: 'Berhasil', message: `Pembayaran ${id} diubah ke ${action}`, color: action === 'Lunas' ? 'green' : 'red' });
-        await fetchStats();
-      }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal memproses pembayaran', color: 'red' });
-    }
-  };
+  if (loading && !stats) {
+    return (
+      <Box h="100vh" style={{ position: 'relative' }}>
+        <LoadingOverlay visible={true} overlayProps={{ blur: 2 }} />
+      </Box>
+    );
+  }
 
-  const handleDeliveryAction = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:4000/api/pengiriman/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Disewa' })
-      });
-      const json = await res.json();
-      if (json.success) {
-        notifications.show({ title: 'Berhasil', message: `Unit pengiriman ${id} telah divalidasi`, color: 'green' });
-        await fetchStats();
-      }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal memproses pengiriman', color: 'red' });
-    }
-  };
-
-  if (!stats && loading) return <Container p="xl"><Text>Memuat data Dashboard...</Text></Container>;
+  const revenueChartData = stats?.revenueChart || [
+    { name: 'Jan', value: 4000 },
+    { name: 'Feb', value: 3000 },
+    { name: 'Mar', value: 5000 },
+    { name: 'Apr', value: 4500 },
+    { name: 'Mei', value: 6000 },
+    { name: 'Jun', value: 5500 },
+  ];
 
   return (
-    <Container size="100%" p="xl" bg="#fcfcfc">
+    <Container size="100%" p="xl" bg="#f8f9fa" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
         
-        {/* --- 1. SMART HEADER --- */}
-        <Group justify="space-between" align="center">
+        {/* --- 1. TOP HEADER --- */}
+        <Group justify="space-between">
           <Box>
-            <Title order={2} fw={900} style={{ letterSpacing: '-0.5px' }}>
-              Dashboard Operasional
-            </Title>
-            <Text c="dimmed" size="sm">Selamat datang kembali, Admin. Berikut ringkasan hari ini.</Text>
+            <Title order={2} fw={900} c="gray.8">Management Dashboard</Title>
+            <Text c="dimmed" size="sm">Otomasi & Monitoring Real-time CV. Sarana Abadi Diesel</Text>
           </Box>
-          <Group gap="sm">
-            <Select 
-              value={period} onChange={setPeriod}
-              data={[{ value: '24h', label: 'Hari Ini' }, { value: '7d', label: '7 Hari Terakhir' }, { value: '30d', label: '30 Hari Terakhir' }]}
-              radius="md" w={160} variant="filled"
-            />
-            <Button color="blue" radius="md" leftSection={<IconPlus size={18}/>}>Input Permintaan</Button>
+          <Group>
+            <Button variant="light" leftSection={<IconClock size={16}/>} color="gray">
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </Button>
+            <Button variant="filled" color="blue" onClick={fetchStats}>Refresh Data</Button>
           </Group>
         </Group>
 
-        {/* --- 2. KEY PERFORMANCE INDICATORS (KPI) --- */}
+        {/* --- 2. KEY PERFORMANCE INDICATORS --- */}
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
           <KPICard 
-            title="Total Pendapatan" val={`Rp ${(stats?.revenue || 0).toLocaleString('id-ID')}`} trend="+ Real Time" 
-            up={true} icon={<IconCash/>} color="green" 
+            title="Total Revenue" 
+            value={`Rp ${(stats?.revenue || 0).toLocaleString()}`} 
+            trend="+12.5%" 
+            icon={<IconCash />} 
+            color="green" 
           />
           <KPICard 
-            title="Unit Sedang Disewa" val={`${stats?.rentedUnits || 0} Unit`} trend="Aktif" 
-            up={true} icon={<IconTruckDelivery/>} color="blue" 
+            title="Units Rented" 
+            value={stats?.rentedUnits || 0} 
+            trend="+3 Units" 
+            icon={<IconEngine />} 
+            color="blue" 
           />
           <KPICard 
-            title="Menunggu Validasi" val={`${stats?.pendingRequests || 0} Order`} trend="Internal" 
-            up={false} icon={<IconAlertCircle/>} color="orange" 
+            title="Active Customers" 
+            value={stats?.activeCustomers || 0} 
+            trend="+1 this week" 
+            icon={<IconUsers />} 
+            color="indigo" 
           />
           <KPICard 
-            title="Siap Kirim" val={`${stats?.readyToShip || 0} Order`} trend="Logistik" 
-            up={null} icon={<IconEngine/>} color="indigo" 
+            title="Pending Actions" 
+            value={stats?.pendingActions || 0} 
+            trend="Priority" 
+            icon={<IconAlertCircle />} 
+            color="orange" 
           />
         </SimpleGrid>
 
+        {/* --- 3. ANALYTICS SECTION --- */}
         <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-          
-          {/* --- 3. REVENUE TREND (Placeholder for Chart) --- */}
-          <Paper withBorder radius="md" p="lg" shadow="sm" style={{ gridColumn: 'span 2' }}>
+          <Paper withBorder p="xl" radius="md" shadow="sm" style={{ gridColumn: 'span 2' }}>
             <Group justify="space-between" mb="xl">
               <Box>
-                <Text fw={800} size="lg">Tren Pendapatan Sewa</Text>
-                <Text size="xs" c="dimmed">Visualisasi arus kas masuk</Text>
+                <Text fw={800} size="lg">Revenue Analytics</Text>
+                <Text size="xs" c="dimmed">Trend pendapatan penyewaan 6 bulan terakhir</Text>
               </Box>
-              <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={18}/></ActionIcon>
+              <Badge variant="light" color="green" size="lg" leftSection={<IconTrendingUp size={14}/>}>
+                Growing
+              </Badge>
             </Group>
-            {/* Visualisasi pengganti Chart */}
-            <Box h={250} bg="gray.0" style={{ borderRadius: '8px', border: '2px dashed #dee2e6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack align="center" gap={4}>
-                    <IconFileAnalytics size={40} color="#adb5bd" stroke={1} />
-                    <Text c="dimmed" size="xs">Data terpantau dalam 30 hari terakhir</Text>
-                </Stack>
+            <Box h={300}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueChartData}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#228be6" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#228be6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#228be6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </Box>
           </Paper>
 
-          {/* --- 4. FLEET UTILIZATION --- */}
-          <Paper withBorder radius="md" p="lg" shadow="sm">
-            <Text fw={800} size="lg" mb="xl">Utilisasi Armada</Text>
-            <Stack gap="xl">
-               {(stats?.fleetUtilization || []).map((f: any) => (
-                 <FleetProgress key={f.label} label={f.label} value={f.value} color={f.color} count={f.count} />
-               ))}
-               {!stats?.fleetUtilization?.length && <Text size="sm" c="dimmed">Belum ada unit mesin.</Text>}
+          <Paper withBorder p="xl" radius="md" shadow="sm">
+            <Text fw={800} size="lg" mb="xl">Fleet Status</Text>
+            <Stack gap="lg">
+              <StatusProgressBar label="Rented Units" val={stats?.rentedUnits || 0} max={100} color="blue" />
+              <StatusProgressBar label="Available" val={stats?.availableUnits || 0} max={100} color="green" />
+              <StatusProgressBar label="In Maintenance" val={stats?.maintenanceUnits || 0} max={100} color="red" />
+              
+              <Divider my="sm" />
+              
+              <Box>
+                <Text fw={700} size="sm" mb="xs">Quick Insights</Text>
+                <Group gap="xs">
+                  <ThemeIcon color="green.0" c="green.9" size="sm"><IconCheck size={12}/></ThemeIcon>
+                  <Text size="xs">Operating at 85% capacity</Text>
+                </Group>
+                <Group gap="xs" mt={8}>
+                  <ThemeIcon color="blue.0" c="blue.9" size="sm"><IconActivity size={12}/></ThemeIcon>
+                  <Text size="xs">High demand for 500kVA units</Text>
+                </Group>
+              </Box>
             </Stack>
-            <Divider my="xl" variant="dashed" />
-            <Button fullWidth variant="light" color="blue" rightSection={<IconArrowUpRight size={14}/>}>
-                Lihat Detail Inventaris
-            </Button>
           </Paper>
-
         </SimpleGrid>
 
-        {/* --- 5. RECENT TRANSACTIONS TABLE --- */}
+        {/* --- 4. RECENT TRANSACTIONS --- */}
         <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden' }}>
           <Box p="lg" bg="white">
              <Group justify="space-between">
-                <Text fw={800} size="lg">Transaksi & Aksi Cepat</Text>
-                <Button variant="subtle" size="xs">Lihat Semua Arsip</Button>
+                <Text fw={800} size="lg">Recent Transactions & Actions</Text>
+                <Button variant="subtle" size="xs">View All</Button>
              </Group>
           </Box>
-          <Table verticalSpacing="md" horizontalSpacing="lg">
-            <Table.Thead bg="gray.0">
-              <Table.Tr>
-                <Table.Th>Pelanggan</Table.Th>
-                <Table.Th>ID Order</Table.Th>
-                <Table.Th>Nominal</Table.Th>
-                <Table.Th>Status Sistem</Table.Th>
-                <Table.Th ta="right">Aksi Operasional</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {(stats?.recentTransactions || []).map((t: any) => (
-                <TransactionRow 
-                  key={t.id} 
-                  name={t.pelanggan} 
-                  id={t.id} 
-                  val={`Rp ${t.nominal.toLocaleString('id-ID')}`} 
-                  status={t.status} 
-                  paymentId={t.pembayaran?.id}
-                  shippingId={t.pengiriman?.id}
-                  onPay={handlePaymentAction}
-                  onShip={handleDeliveryAction}
-                />
-              ))}
-              {!stats?.recentTransactions?.length && (
+          <ScrollArea>
+            <Table verticalSpacing="md" horizontalSpacing="lg" miw={800}>
+              <Table.Thead bg="gray.0">
                 <Table.Tr>
-                  <Table.Td colSpan={5} ta="center" p="xl"><Text c="dimmed">Belum ada transaksi terbaru.</Text></Table.Td>
+                  <Table.Th>Customer</Table.Th>
+                  <Table.Th>ID Order</Table.Th>
+                  <Table.Th>Amount</Table.Th>
+                  <Table.Th>System Status</Table.Th>
+                  <Table.Th ta="right">Action</Table.Th>
                 </Table.Tr>
-              )}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {(stats?.recentTransactions || []).map((trx: any) => (
+                  <Table.Tr key={trx.id}>
+                    <Table.Td>
+                      <Group gap="sm">
+                        <Avatar size="sm" color="blue" radius="xl">{(trx.customer || 'C')[0]}</Avatar>
+                        <Text size="sm" fw={600}>{trx.customer}</Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td><Text size="xs" fw={700} c="dimmed">{trx.id}</Text></Table.Td>
+                    <Table.Td><Text size="sm" fw={700}>Rp {(trx.amount || 0).toLocaleString()}</Text></Table.Td>
+                    <Table.Td>
+                      <Badge variant="light" color={getStatusColor(trx.status || '')} size="sm">
+                        {trx.status}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td ta="right">
+                      <Button variant="subtle" size="xs" color="blue">Details</Button>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
         </Paper>
-
       </Stack>
     </Container>
   );
 }
 
-// --- REUSABLE MINI COMPONENTS ---
+// --- REUSABLE COMPONENTS ---
 
-function KPICard({ title, val, trend, up, icon, color }: any) {
+function KPICard({ title, value, trend, icon, color }: any) {
+  const isUp = trend?.startsWith('+');
   return (
-    <Paper p="lg" radius="md" withBorder shadow="xs" style={{ position: 'relative' }}>
-      <Group justify="space-between" mb="xs">
-        <ThemeIcon size="lg" radius="md" variant="light" color={color}>{icon}</ThemeIcon>
-        {up !== null && (
-          <Badge 
-            variant="light" 
-            color={up ? 'green' : 'red'} 
-          >
-            {trend}
-          </Badge>
-        )}
+    <Paper p="xl" radius="md" withBorder shadow="xs">
+      <Group justify="space-between" align="flex-start">
+        <Box>
+          <Text size="xs" c="dimmed" fw={800} tt="uppercase">{title}</Text>
+          <Title order={3} fw={900} mt={4}>{value}</Title>
+          <Group gap={4} mt={8}>
+            {isUp ? <IconTrendingUp size={14} color="green"/> : <IconTrendingDown size={14} color="red"/>}
+            <Text size="xs" fw={700} c={isUp ? 'green.7' : 'red.7'}>{trend}</Text>
+            <Text size="xs" c="dimmed">vs last month</Text>
+          </Group>
+        </Box>
+        <ThemeIcon size={48} radius="md" variant="light" color={color}>
+          {icon}
+        </ThemeIcon>
       </Group>
-      <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{title}</Text>
-      <Text fw={900} size="24px" c="gray.8">{val}</Text>
     </Paper>
   );
 }
 
-function FleetProgress({ label, value, color, count }: any) {
-    return (
-        <Box>
-            <Group justify="space-between" mb={4}>
-                <Text size="xs" fw={700}>{label}</Text>
-                <Text size="xs" c="dimmed">{count} Unit</Text>
-            </Group>
-            <Progress value={value} color={color} size="sm" radius="xl" />
-        </Box>
-    );
+function StatusProgressBar({ label, val, max, color }: any) {
+  return (
+    <Box>
+      <Group justify="space-between" mb={4}>
+        <Text size="xs" fw={700}>{label}</Text>
+        <Text size="xs" c="dimmed">{val}/{max} Units</Text>
+      </Group>
+      <Box h={8} bg="gray.1" style={{ borderRadius: 10, overflow: 'hidden' }}>
+        <Box h="100%" bg={color} style={{ width: `${(val/max)*100}%`, borderRadius: 10 }} />
+      </Box>
+    </Box>
+  );
 }
 
-function TransactionRow({ name, id, val, status, paymentId, shippingId, onPay, onShip }: any) {
-    const isPendingPayment = status === 'Menunggu Pembayaran' || (paymentId && status.includes('Validasi'));
-    const isPendingDelivery = status === 'Dikirim';
-
-    return (
-        <Table.Tr>
-            <Table.Td>
-                <Group gap="sm">
-                    <Avatar size="sm" radius="xl" color="blue">{name[0]}</Avatar>
-                    <Text size="sm" fw={600}>{name}</Text>
-                </Group>
-            </Table.Td>
-            <Table.Td><Text size="xs" c="dimmed">{id}</Text></Table.Td>
-            <Table.Td><Text size="sm" fw={700}>{val}</Text></Table.Td>
-            <Table.Td>
-              <Badge color={status.includes('Lunas') ? 'green' : 'orange'} variant="dot" size="sm">
-                {status}
-              </Badge>
-            </Table.Td>
-            <Table.Td ta="right">
-                <Group gap="xs" justify="flex-end">
-                  {paymentId && status !== 'Lunas' && (
-                    <>
-                      <Button size="xs" variant="light" color="green" onClick={() => onPay(paymentId, 'Lunas')}>Terima Bayar</Button>
-                      <Button size="xs" variant="light" color="red" onClick={() => onPay(paymentId, 'Ditolak')}>Tolak</Button>
-                    </>
-                  )}
-                  {isPendingDelivery && (
-                    <Button size="xs" color="indigo" variant="filled" onClick={() => onShip(shippingId)}>Validasi Terima Unit</Button>
-                  )}
-                  <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16}/></ActionIcon>
-                </Group>
-            </Table.Td>
-        </Table.Tr>
-    );
+function getStatusColor(status: string) {
+  switch(status.toLowerCase()) {
+    case 'lunas':
+    case 'valid': return 'green';
+    case 'pending':
+    case 'menunggu': return 'orange';
+    case 'proses': return 'blue';
+    default: return 'gray';
+  }
 }

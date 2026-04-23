@@ -1,353 +1,310 @@
 'use client'
 
-import { Fragment, useState, useMemo } from 'react';
-import { 
-  Table, Badge, Group, Text, ActionIcon, Paper, Title, Stack, 
-  Button, NumberInput, Divider, Box, Collapse, Modal, LoadingOverlay 
-} from '@mantine/core';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { notifications } from '@mantine/notifications';
 import { 
-  IconChevronDown, IconChevronUp, IconSend, 
-  IconCheck, IconX, IconAlertCircle 
+  Table, Badge, Group, Text, ActionIcon, Paper, Title, Stack, 
+  Button, NumberInput, Divider, Box, Collapse, Modal, LoadingOverlay, Skeleton, Container
+} from '@mantine/core';
+import { 
+  IconCheck, IconAlertCircle, IconChevronDown, 
+  IconChevronUp, IconSend 
 } from '@tabler/icons-react';
 
-import { useEffect } from 'react';
+interface PermintaanMesin {
+  idMesin: string;
+  namaMesin: string;
+  qty: number;
+  harga: number;
+  diskon: number;
+}
 
-export default function KonfirmasiMultiMesin() {
-  const [openedRow, setOpenedRow] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+interface PermintaanSewa {
+  idPermintaan: string;
+  pelanggan: string;
+  lokasi: string;
+  status: string;
+  mesin: PermintaanMesin[];
+  durasi: number;
+}
+
+export default function KonfirmasiPersetujuanHarga() {
+  const [dataPermintaan, setDataPermintaan] = useState<PermintaanSewa[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [openedId, setOpenedId] = useState<string | null>(null);
+  const [confirmOpened, setConfirmOpened] = useState(false);
+  const [activeReqId, setActiveReqId] = useState<string | null>(null);
 
-  const [requests, setRequests] = useState<any[]>([]);
-
-  const fetchRequests = async () => {
-    setLoading(true);
+  const fetchAllPermintaan = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
-        // Map backend structure to frontend structure
-        const mapped = json.data.map((req: any) => ({
-          id: req.idPermintaan,
+        setDataPermintaan(json.data.map((req: any) => ({
+          idPermintaan: req.idPermintaan,
           pelanggan: req.pelanggan || 'Tanpa Nama',
           lokasi: req.lokasi,
           status: req.status,
-          machines: req.mesin.map((m: any) => ({
-            id: m.idMesin,
-            jenis: m.mesin?.namaMesin || 'Mesin',
+          durasi: req.durasi,
+          mesin: (req.mesin || []).map((m: any) => ({
+            idMesin: m.idMesin,
+            namaMesin: m.mesin?.namaMesin || 'Mesin',
             qty: m.qty,
-            harga: m.harga,
-            diskon: m.diskon
+            harga: m.harga || 0,
+            diskon: m.diskon || 0
           }))
-        }));
-        setRequests(mapped);
+        })));
       }
-    } catch (error) {
-      notifications.show({
-        title: 'Error',
-        message: 'Gagal mengambil data permintaan dari server',
-        color: 'red'
+    } catch (err: any) {
+      notifications.show({ 
+        title: 'Koneksi Gagal', 
+        message: err.message || 'Gagal mengambil data dari server', 
+        color: 'red' 
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    fetchAllPermintaan();
   }, []);
 
-  const updateMachineValue = (
-    requestId: string, 
-    machineId: string, 
-    field: 'harga' | 'diskon', 
-    value: number
-  ) => {
-    setRequests((prev) => 
+  const updateItemValue = (reqId: string, mesinId: string, field: 'harga' | 'diskon', val: number) => {
+    setDataPermintaan((prev) => 
       prev.map((req) => {
-        if (req.id !== requestId) return req;
-
+        if (req.idPermintaan !== reqId) return req;
         return {
           ...req,
-          machines: req.machines.map((m: any) => 
-            m.id === machineId 
-              ? { ...m, [field]: Number.isFinite(value) ? value : 0 } 
-              : m
+          mesin: req.mesin.map((m) => 
+            m.idMesin === mesinId ? { ...m, [field]: Number.isFinite(val) ? val : 0 } : m
           ),
         };
       })
     );
   };
 
-  const calculateTotal = (machines: any[]) => {
-    return machines.reduce((acc, m) => {
-      const effective = Math.max(0, m.harga - m.diskon);
-      return acc + effective * m.qty;
-    }, 0);
-  };
-
-  const openConfirm = (id: string) => {
-    setSelectedRequestId(id);
-    setConfirmOpen(true);
-  };
-
-  const closeConfirm = () => {
-    if (isSubmitting) return; 
-    setConfirmOpen(false);
-    setSelectedRequestId(null);
-  };
-
-  const executeSendToCustomer = async () => {
-    if (!selectedRequestId) return;
-
+  const handleValidationAction = async () => {
+    if (!activeReqId) return;
+    
     setIsSubmitting(true);
     try {
-      const targetReq = requests.find(r => r.id === selectedRequestId);
-      if (!targetReq) return;
+      const target = dataPermintaan.find(r => r.idPermintaan === activeReqId);
+      if (!target) return;
 
-      // Persiapkan data untuk API (Sesuai skema relational kita)
       const payload = {
-        pelanggan: targetReq.pelanggan,
-        lokasi: targetReq.lokasi,
-        durasi: targetReq.durasi,
+        pelanggan: target.pelanggan,
+        lokasi: target.lokasi,
+        durasi: target.durasi,
         status: 'Divalidasi',
-        mesin: targetReq.machines.map((m: any) => ({
-          idMesin: m.id,
+        mesin: target.mesin.map(m => ({
+          idMesin: m.idMesin,
           qty: m.qty,
           harga: m.harga,
           diskon: m.diskon
         }))
       };
 
-      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/${selectedRequestId}`, {
+      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/${activeReqId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
+      
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const json = await res.json();
 
       if (json.success) {
         notifications.show({
-          title: 'Penawaran Terkirim',
-          message: `Harga penawaran untuk ${selectedRequestId} telah berhasil divalidasi dan dikirim ke pelanggan.`,
+          title: 'Berhasil Divalidasi',
+          message: `Penawaran harga untuk ${activeReqId} telah dikirim ke pelanggan.`,
           color: 'green',
           icon: <IconCheck size={18} />,
         });
-        await fetchRequests();
+        await fetchAllPermintaan();
+        setConfirmOpened(false);
+        setOpenedId(null);
       } else {
         throw new Error(json.message);
       }
-
-      setOpenedRow(null);
-      setConfirmOpen(false);
-    } catch (error: any) {
+    } catch (err: any) {
       notifications.show({
-        title: 'Gagal Memproses',
-        message: error.message || 'Terjadi kesalahan sistem saat mengirim penawaran.',
+        title: 'Validasi Gagal',
+        message: err.message || 'Terjadi kesalahan saat menyimpan data.',
         color: 'red',
-        icon: <IconAlertCircle size={18} />,
+        icon: <IconAlertCircle size={18}/>
       });
     } finally {
       setIsSubmitting(false);
-      setSelectedRequestId(null);
     }
   };
 
-  const sortedRequests = useMemo(() => {
-    return [...requests].sort((a, b) => {
-      if (a.status === 'Divalidasi' && b.status !== 'Divalidasi') return 1;
-      if (a.status !== 'Divalidasi' && b.status === 'Divalidasi') return -1;
+  const sortedList = useMemo(() => {
+    return [...dataPermintaan].sort((a, b) => {
+      const aIsPending = a.status === 'Menunggu' || a.status === 'Menunggu Validasi';
+      const bIsPending = b.status === 'Menunggu' || b.status === 'Menunggu Validasi';
+      if (aIsPending && !bIsPending) return -1;
+      if (!aIsPending && bIsPending) return 1;
       return 0;
     });
-  }, [requests]);
+  }, [dataPermintaan]);
 
-  const toggleRow = (id: string) =>
-    setOpenedRow((prev) => (prev === id ? null : id));
+  const calcTotalReq = (items: PermintaanMesin[]) => {
+    return (items || []).reduce((acc, m) => {
+      const net = Math.max(0, m.harga - m.diskon);
+      return acc + (net * m.qty);
+    }, 0);
+  };
+
+  const toggleRowView = (id: string) => setOpenedId(prev => prev === id ? null : id);
+  
+  const triggerConfirmModal = (id: string) => {
+    setActiveReqId(id);
+    setConfirmOpened(true);
+  };
 
   return (
-    <>
+    <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Modal
-        opened={confirmOpen}
-        onClose={closeConfirm}
-        title={<Text fw={700}>Konfirmasi Finalisasi</Text>}
-        centered
-        radius="md"
-        withCloseButton={!isSubmitting}
-        closeOnClickOutside={!isSubmitting}
+        opened={confirmOpened}
+        onClose={() => !isSubmitting && setConfirmOpened(false)}
+        title={<Text fw={900} size="lg">Finalisasi Penawaran</Text>}
+        centered radius="lg"
+        overlayProps={{ backgroundOpacity: 0.5, blur: 3 }}
       >
         <LoadingOverlay visible={isSubmitting} overlayProps={{ blur: 2 }} />
-        <Stack>
-          <Text size="sm">
-            Apakah Anda yakin detail harga dan diskon untuk permintaan <b>{selectedRequestId}</b> sudah sesuai dengan kebijakan perusahaan?
-          </Text>
-
-          <Group justify="flex-end" mt="md">
-            <Button
-              variant="subtle"
-              color="gray"
-              onClick={closeConfirm}
-              disabled={isSubmitting}
-            >
-              Batal
-            </Button>
-            <Button
-              color="blue"
-              onClick={executeSendToCustomer}
-              loading={isSubmitting}
-              leftSection={<IconCheck size={16} />}
-            >
-              Ya, Kirim ke Pelanggan
+        <Stack gap="md">
+          <Box p="md" bg="blue.0" style={{ borderRadius: '8px', border: '1px solid var(--mantine-color-blue-2)' }}>
+            <Text size="sm" fw={600} c="blue.9">
+              Anda akan memvalidasi harga untuk permintaan {activeReqId}. Pastikan diskon sudah sesuai dengan kontrak pelanggan.
+            </Text>
+          </Box>
+          <Group justify="flex-end">
+            <Button variant="subtle" color="black" onClick={() => setConfirmOpened(false)} disabled={isSubmitting}>Batal</Button>
+            <Button color="blue" variant="filled" onClick={handleValidationAction} loading={isSubmitting} leftSection={<IconCheck size={18} />}>
+              Validasi & Kirim
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      <Stack gap="lg">
+      <Stack gap="xl">
         <Box>
-          <Title order={2} fw={800}>Persetujuan Penawaran Harga</Title>
-          <Text c="dimmed" size="sm">
-            Tinjau permintaan sewa multi-mesin dan berikan diskon khusus jika diperlukan.
-          </Text>
+          <Title order={1} fw={900} c="gray.9" mb={4}>Manajemen Penawaran Sewa</Title>
+          <Text c="dimmed" size="sm">Validasi harga satuan dan berikan diskon operasional untuk permintaan multi-mesin.</Text>
         </Box>
 
-        <Paper withBorder radius="md" shadow="sm">
-          <Table verticalSpacing="md" highlightOnHover>
-            <Table.Thead bg="gray.0">
-              <Table.Tr>
-                <Table.Th w={40} />
-                <Table.Th>ID Permintaan</Table.Th>
-                <Table.Th>Pelanggan</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th ta="right">Aksi</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {sortedRequests.map((req) => {
-                const isDone = req.status === 'Divalidasi';
-                const totalHarga = calculateTotal(req.machines);
+        <Paper withBorder radius="md" shadow="xs" style={{ overflow: 'hidden' }}>
+          <Skeleton visible={isLoading}>
+            <Table verticalSpacing="md" highlightOnHover stickyHeader>
+              <Table.Thead bg="gray.0">
+                <Table.Tr>
+                  <Table.Th w={60} />
+                  <Table.Th>ID Permintaan</Table.Th>
+                  <Table.Th>Pelanggan</Table.Th>
+                  <Table.Th>Status Saat Ini</Table.Th>
+                  <Table.Th ta="right">Aksi</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {sortedList.map((req) => {
+                  const isProcessed = req.status !== 'Menunggu' && req.status !== 'Menunggu Validasi';
+                  return (
+                    <Fragment key={req.idPermintaan}>
+                      <Table.Tr style={{ opacity: isProcessed ? 0.6 : 1, backgroundColor: openedId === req.idPermintaan ? 'var(--mantine-color-blue-0)' : undefined }}>
+                        <Table.Td>
+                          <ActionIcon variant="light" color={openedId === req.idPermintaan ? 'blue' : 'gray'} onClick={() => toggleRowView(req.idPermintaan)}>
+                            {openedId === req.idPermintaan ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                          </ActionIcon>
+                        </Table.Td>
+                        <Table.Td fw={900}>{req.idPermintaan}</Table.Td>
+                        <Table.Td fw={600}>{req.pelanggan}</Table.Td>
+                        <Table.Td>
+                          <Badge variant={isProcessed ? 'light' : 'filled'} color={isProcessed ? 'gray' : 'orange'} size="sm">
+                            {req.status}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Button 
+                            size="xs" variant={isProcessed ? 'subtle' : 'filled'} 
+                            color={isProcessed ? 'gray' : 'blue'}
+                            onClick={() => toggleRowView(req.idPermintaan)}
+                          >
+                            {isProcessed ? 'Lihat Detail' : 'Atur Harga'}
+                          </Button>
+                        </Table.Td>
+                      </Table.Tr>
 
-                return (
-                  <Fragment key={req.id}>
-                    <Table.Tr style={{ 
-                      opacity: isDone ? 0.6 : 1,
-                      transition: 'opacity 0.3s ease'
-                    }}>
-                      <Table.Td>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          onClick={() => toggleRow(req.id)}
-                        >
-                          {openedRow === req.id ? (
-                            <IconChevronUp size={16} />
-                          ) : (
-                            <IconChevronDown size={16} />
-                          )}
-                        </ActionIcon>
-                      </Table.Td>
+                      <Table.Tr>
+                        <Table.Td colSpan={5} p={0}>
+                          <Collapse in={openedId === req.idPermintaan}>
+                            <Box p="xl" bg="gray.0" style={{ borderTop: '2px solid var(--mantine-color-gray-2)' }}>
+                              <Group justify="space-between" mb="lg">
+                                <Text fw={900} size="sm" tt="uppercase" c="dimmed">Daftar Aset Yang Diminta</Text>
+                                <Badge variant="outline" color="blue">Durasi: {req.durasi} Hari</Badge>
+                              </Group>
 
-                      <Table.Td fw={700}>{req.id}</Table.Td>
-                      <Table.Td>{req.pelanggan}</Table.Td>
-
-                      <Table.Td>
-                        <Badge
-                          variant={isDone ? 'light' : 'filled'}
-                          color={isDone ? 'gray' : 'orange'}
-                        >
-                          {req.status}
-                        </Badge>
-                      </Table.Td>
-
-                      <Table.Td ta="right">
-                        <Button
-                          size="xs"
-                          variant={isDone ? 'subtle' : 'light'}
-                          color={isDone ? 'gray' : 'blue'}
-                          onClick={() => toggleRow(req.id)}
-                        >
-                          {isDone ? 'Lihat Rincian' : 'Proses Harga'}
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-
-                    <Table.Tr>
-                      <Table.Td colSpan={5} p={0}>
-                        <Collapse in={openedRow === req.id}>
-                          <Box p="md" bg="gray.0" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-                            <Text fw={700} size="xs" c="dimmed" tt="uppercase" mb="xs">
-                              Daftar Unit Mesin
-                            </Text>
-                            <Stack gap="xs">
-                              {req.machines.map((m) => (
-                                <Paper key={m.id} withBorder p="sm" radius="md" bg="white">
-                                  <Group justify="space-between">
-                                    <Box>
-                                      <Text size="sm" fw={700}>{m.jenis}</Text>
-                                      <Text size="xs" c="dimmed">S/N: {m.id} | Jumlah: {m.qty} unit</Text>
-                                    </Box>
-
-                                    <Group gap="lg">
-                                      <NumberInput
-                                        label="Harga Satuan"
-                                        size="xs"
-                                        value={m.harga}
-                                        onChange={(val) => updateMachineValue(req.id, m.id, 'harga', Number(val))}
-                                        disabled={isDone}
-                                        prefix="Rp "
-                                        thousandSeparator=","
-                                        w={150}
-                                      />
-                                      <NumberInput
-                                        label="Diskon"
-                                        size="xs"
-                                        value={m.diskon}
-                                        onChange={(val) => updateMachineValue(req.id, m.id, 'diskon', Number(val))}
-                                        disabled={isDone}
-                                        prefix="Rp "
-                                        thousandSeparator=","
-                                        w={130}
-                                      />
+                              <Stack gap="md">
+                                {req.mesin.map((m) => (
+                                  <Paper key={m.idMesin} withBorder p="md" radius="lg" bg="white" shadow="xs">
+                                    <Group justify="space-between">
+                                      <Box>
+                                        <Text size="sm" fw={800} c="blue.9">{m.namaMesin}</Text>
+                                        <Text size="xs" c="dimmed" fw={700}>S/N: {m.idMesin} | Qty: {m.qty} Unit</Text>
+                                      </Box>
+                                      <Group gap="xl">
+                                        <NumberInput
+                                          label="Harga Satuan (IDR)" size="sm" w={180} value={m.harga}
+                                          onChange={(val) => updateItemValue(req.idPermintaan, m.idMesin, 'harga', Number(val))}
+                                          disabled={isProcessed} prefix="Rp " thousandSeparator=","
+                                          variant="filled"
+                                        />
+                                        <NumberInput
+                                          label="Diskon Khusus (IDR)" size="sm" w={160} value={m.diskon}
+                                          onChange={(val) => updateItemValue(req.idPermintaan, m.idMesin, 'diskon', Number(val))}
+                                          disabled={isProcessed} prefix="Rp " thousandSeparator=","
+                                          variant="filled"
+                                        />
+                                      </Group>
                                     </Group>
-                                  </Group>
-                                </Paper>
-                              ))}
-                            </Stack>
-
-                            <Divider my="md" variant="dashed" />
-
-                            <Group justify="flex-end">
-                              <Stack gap={0} align="flex-end">
-                                <Text size="xs" c="dimmed" fw={700}>TOTAL PENAWARAN</Text>
-                                <Text fw={900} size="xl" c="blue.9">
-                                  Rp {totalHarga.toLocaleString('id-ID')}
-                                </Text>
+                                  </Paper>
+                                ))}
                               </Stack>
-
-                              {!isDone && (
-                                <Button
-                                  color="blue"
-                                  size="md"
-                                  leftSection={<IconSend size={18} />}
-                                  onClick={() => openConfirm(req.id)}
-                                >
-                                  Kirim Penawaran
-                                </Button>
-                              )}
-                            </Group>
-                          </Box>
-                        </Collapse>
-                      </Table.Td>
-                    </Table.Tr>
-                  </Fragment>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+                              
+                              <Divider my="xl" variant="dashed" />
+                              
+                              <Group justify="flex-end" align="flex-end">
+                                <Stack gap={2} align="flex-end" px="xl">
+                                  <Text size="xs" c="dimmed" fw={900} tt="uppercase">Estimasi Total Invoice</Text>
+                                  <Text fw={900} size="28px" c="blue.9" style={{ lineHeight: 1 }}>
+                                    Rp {calcTotalReq(req.mesin).toLocaleString('id-ID')}
+                                  </Text>
+                                </Stack>
+                                {!isProcessed && (
+                                  <Button 
+                                    color="blue" size="lg" radius="md"
+                                    leftSection={<IconSend size={20} />}
+                                    onClick={() => triggerConfirmModal(req.idPermintaan)}
+                                  >
+                                    Kirim Ke Pelanggan
+                                  </Button>
+                                )}
+                              </Group>
+                            </Box>
+                          </Collapse>
+                        </Table.Td>
+                      </Table.Tr>
+                    </Fragment>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Skeleton>
         </Paper>
       </Stack>
-    </>
+    </Container>
   );
 }

@@ -34,4 +34,26 @@ export class PengirimanController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  async getDeliveryTracks(req: Request, res: Response) {
+    try {
+      const data = await this.repository.findAll();
+      const tracks = data.map(d => ({
+        id: d.id,
+        pelanggan: d.permintaan?.pelanggan || "N/A",
+        sopir: d.sopir,
+        kontak: "N/A",
+        plat: "N/A",
+        berangkatAt: d.tanggalKirim,
+        status: d.status === "Dikirim" ? "OTW" : "DISEWA",
+        items: d.idPermintaan,
+        lastLocation: d.status === "Dikirim" ? "On Road" : "At Destination",
+        progress: d.status === "Dikirim" ? 50 : 100,
+        detailItems: []
+      }));
+      res.json({ success: true, data: tracks });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }

@@ -1,54 +1,74 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
   TextInput, Modal, Select, Container, 
-  Table, Divider} from '@mantine/core';
+  Table, Divider, Alert, LoadingOverlay
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { 
   IconSearch, IconDownload, 
   IconPrinter, 
-  IconX, IconFileDescription} from '@tabler/icons-react';
+  IconX, IconFileDescription, IconAlertCircle
+} from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 
-// Data Mockup
-import { useEffect } from 'react';
+interface POItem {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+interface PurchaseOrder {
+  id: string;
+  date: string;
+  client: string;
+  address: string;
+  total: number;
+  status: 'Selesai' | 'Dibatalkan' | 'Aktif' | string;
+  items: POItem[];
+}
 
 export default function ArsipPurchaseOrderPro() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>('Semua');
-  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
-  const [loading, setLoading] = useState(true);
+  
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  const [archiveData, setArchiveData] = useState<any[]>([]);
-
   const fetchArchive = async () => {
-    setLoading(true);
+    setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
-        // Filter those that are validated/finished for the PO list
-        setArchiveData(json.data.map((req: any) => ({
+        setPurchaseOrders(json.data.map((req: any) => ({
           id: req.idPermintaan,
           date: req.tanggalFormat || '20 Feb 2026',
           client: req.pelanggan || 'Tanpa Nama',
           address: req.lokasi,
-          total: req.mesin.reduce((acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty, 0),
-          status: req.status === 'Divalidasi' ? 'Selesai' : req.status === 'Dibatalkan' ? 'Dibatalkan' : 'Aktif',
-          items: req.mesin.map((m: any) => ({
+          total: (req.mesin || []).reduce((acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty, 0),
+          status: req.status === 'Divalidasi' || req.status === 'Lunas' ? 'Selesai' : 
+                  req.status === 'Dibatalkan' ? 'Dibatalkan' : 'Aktif',
+          items: (req.mesin || []).map((m: any) => ({
             name: m.mesin?.namaMesin || 'Mesin',
             qty: m.qty,
             price: m.harga - m.diskon
           }))
         })));
       }
-    } catch (error) {
-      notifications.show({ title: 'Error', message: 'Gagal memuat arsip PO', color: 'red' });
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat arsip PO');
+      notifications.show({ title: 'Error', message: err.message, color: 'red' });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -56,22 +76,23 @@ export default function ArsipPurchaseOrderPro() {
     fetchArchive();
   }, []);
 
-  // Logic Search & Filter
   const filteredData = useMemo(() => {
-    return archiveData.filter(item => {
-      const matchSearch = item.client.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase());
+    return purchaseOrders.filter(item => {
+      const matchSearch = item.client.toLowerCase().includes(search.toLowerCase()) || 
+                          item.id.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === 'Semua' || item.status === filterStatus;
       return matchSearch && matchStatus;
     });
-  }, [search, filterStatus, archiveData]);
+  }, [search, filterStatus, purchaseOrders]);
 
-  const handleOpenInvoice = (po: any) => {
+  const handleOpenInvoice = (po: PurchaseOrder) => {
     setSelectedPO(po);
     open();
   };
 
-  // LOGIKA DOWNLOAD / PRINT (Sangat Fungsional)
   const handlePrint = () => {
+    if (!selectedPO || !invoiceRef.current) return;
+    
     const printContent = invoiceRef.current;
     const windowUrl = 'about:blank';
     const uniqueName = new Date().getTime();
@@ -104,6 +125,12 @@ export default function ArsipPurchaseOrderPro() {
   return (
     <Container size="100%" p="xl" bg="#fcfcfc">
       <Stack gap="xl">
+        {error && (
+          <Alert icon={<IconAlertCircle size={18}/>} title="Error" color="red">
+            {error}
+          </Alert>
+        )}
+
         <Group justify="space-between">
           <Box>
             <Title order={2} fw={900} c="gray.8">Arsip Purchase Order</Title>
@@ -111,7 +138,6 @@ export default function ArsipPurchaseOrderPro() {
           </Box>
         </Group>
 
-        {/* --- SMART TOOLBAR --- */}
         <Paper withBorder p="md" radius="md" shadow="xs">
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
             <TextInput 
@@ -122,17 +148,17 @@ export default function ArsipPurchaseOrderPro() {
             />
             <Select 
               placeholder="Status Transaksi"
-              data={['Semua', 'Selesai', 'Dibatalkan']} 
+              data={['Semua', 'Selesai', 'Dibatalkan', 'Aktif']} 
               value={filterStatus} onChange={setFilterStatus}
             />
             <Button variant="light" color="blue" leftSection={<IconDownload size={18}/>}>
-                Eksport Laporan Bulanan
+                Eksport Laporan Lunas
             </Button>
           </SimpleGrid>
         </Paper>
 
-        {/* --- DATA TABLE --- */}
-        <Paper withBorder radius="md" shadow="xs" style={{ overflow: 'hidden' }}>
+        <Paper withBorder radius="md" shadow="xs" style={{ overflow: 'hidden', position: 'relative' }}>
+          <LoadingOverlay visible={isLoading} />
           <Table verticalSpacing="md" horizontalSpacing="lg" highlightOnHover>
             <Table.Thead bg="gray.0">
               <Table.Tr>
@@ -148,11 +174,11 @@ export default function ArsipPurchaseOrderPro() {
               {filteredData.map((po) => (
                 <Table.Tr key={po.id}>
                   <Table.Td fw={700} c="blue.7">{po.id}</Table.Td>
-                  <Table.Td size="xs">{po.date}</Table.Td>
+                  <Table.Td><Text size="xs">{po.date}</Text></Table.Td>
                   <Table.Td fw={600}>{po.client}</Table.Td>
                   <Table.Td fw={800}>Rp {po.total.toLocaleString('id-ID')}</Table.Td>
                   <Table.Td>
-                    <Badge color={po.status === 'Selesai' ? 'green' : 'red'} variant="light" size="sm">
+                    <Badge color={po.status === 'Selesai' ? 'green' : po.status === 'Dibatalkan' ? 'red' : 'blue'} variant="light" size="sm">
                       {po.status}
                     </Badge>
                   </Table.Td>
@@ -172,7 +198,6 @@ export default function ArsipPurchaseOrderPro() {
         </Paper>
       </Stack>
 
-      {/* --- INVOICE PREVIEW MODAL (The "Pro" UX) --- */}
       <Modal 
         opened={opened} onClose={close} 
         size="lg" centered 
@@ -182,10 +207,8 @@ export default function ArsipPurchaseOrderPro() {
       >
         {selectedPO && (
           <Stack gap="xl">
-            {/* Box ini yang akan dicetak */}
             <div ref={invoiceRef}>
               <Box p="lg" style={{ border: '1px solid #e9ecef', borderRadius: '8px' }} bg="white">
-                {/* Header Faktur */}
                 <Group justify="space-between" mb="xl">
                   <Box>
                     <Title order={4} c="blue.8" tt="uppercase">CV. SARANA ABADI DIESEL</Title>
@@ -196,10 +219,7 @@ export default function ArsipPurchaseOrderPro() {
                     <Text size="xs" fw={700}>{selectedPO.id}</Text>
                   </Box>
                 </Group>
-
                 <Divider my="md" />
-
-                {/* Info Pihak Terkait */}
                 <SimpleGrid cols={2} mb="xl">
                   <Box>
                     <Text size="xs" fw={700} c="dimmed" mb={4}>TAGIHAN UNTUK:</Text>
@@ -207,22 +227,20 @@ export default function ArsipPurchaseOrderPro() {
                     <Text size="xs" c="dimmed" w={150}>{selectedPO.address}</Text>
                   </Box>
                   <Box ta="right">
-                    <Text size="xs" fw={700} c="dimmed" mb={4}>TANGGAL TRANSKASI:</Text>
+                    <Text size="xs" fw={700} c="dimmed" mb={4}>TANGGAL TRANSAKSI:</Text>
                     <Text fw={700} size="sm">{selectedPO.date}</Text>
                   </Box>
                 </SimpleGrid>
-
-                {/* Item List */}
                 <Table verticalSpacing="xs" mb="xl">
                   <Table.Thead bg="gray.0">
                     <Table.Tr>
-                      <Table.Th size="xs">Deskripsi Layanan</Table.Th>
-                      <Table.Th size="xs" ta="right">Jumlah</Table.Th>
-                      <Table.Th size="xs" ta="right">Subtotal</Table.Th>
+                      <Table.Th fz="xs">Deskripsi Layanan</Table.Th>
+                      <Table.Th fz="xs" ta="right">Jumlah</Table.Th>
+                      <Table.Th fz="xs" ta="right">Subtotal</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {selectedPO.items.map((item: any, idx: number) => (
+                    {(selectedPO.items || []).map((item: any, idx: number) => (
                       <Table.Tr key={idx}>
                         <Table.Td><Text size="xs">{item.name}</Text></Table.Td>
                         <Table.Td ta="right"><Text size="xs">{item.qty}</Text></Table.Td>
@@ -231,15 +249,12 @@ export default function ArsipPurchaseOrderPro() {
                     ))}
                   </Table.Tbody>
                 </Table>
-
-                {/* Total Section */}
                 <Group justify="flex-end">
                     <Box ta="right" p="sm" bg="blue.0" style={{ borderRadius: '4px', minWidth: '200px' }}>
                         <Text size="xs" fw={700} c="blue.9">TOTAL BAYAR</Text>
                         <Text fw={900} size="xl" c="blue.9">Rp {selectedPO.total.toLocaleString('id-ID')}</Text>
                     </Box>
                 </Group>
-
                 <Box mt={40}>
                     <Text size="10px" c="dimmed" ta="center">
                         Dokumen ini dihasilkan secara otomatis oleh Sistem Manajemen CV SAD dan sah tanpa tanda tangan basah.
@@ -247,12 +262,10 @@ export default function ArsipPurchaseOrderPro() {
                 </Box>
               </Box>
             </div>
-
-            {/* Footer Modal Action */}
             <Group grow>
                 <Button variant="default" leftSection={<IconX size={18}/>} onClick={close}>Tutup</Button>
                 <Button color="blue" leftSection={<IconPrinter size={18}/>} onClick={handlePrint}>
-                    Cetak & Simpan PDF
+                    Cetak Faktur
                 </Button>
             </Group>
           </Stack>
