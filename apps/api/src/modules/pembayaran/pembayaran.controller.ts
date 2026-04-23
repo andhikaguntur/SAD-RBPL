@@ -49,7 +49,7 @@ export class PembayaranController {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const data = await this.repository.updateStatus(id, status);
+      const data = await this.repository.updateStatusWithSync(id, status);
       res.json({ success: true, data });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

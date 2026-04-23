@@ -134,4 +134,23 @@ export class PembayaranRepository {
       permintaan: d.permintaan
     }));
   }
+
+  async updateStatusWithSync(id: string, status: 'Lunas' | 'Ditolak') {
+  return await prisma.$transaction(async (tx) => {
+    
+    const pembayaran = await tx.pembayaran.update({
+      where: { id },
+      data: { status }
+    });
+
+    if (status === 'Lunas') {
+      await tx.permintaanSewa.update({
+        where: { idPermintaan: pembayaran.idPermintaan },
+        data: { status: 'Lunas' }
+      });
+    }
+
+    return pembayaran;
+  });
+}
 }

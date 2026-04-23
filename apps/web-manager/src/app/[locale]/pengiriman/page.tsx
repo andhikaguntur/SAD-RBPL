@@ -123,6 +123,7 @@ export default function LogisticsCommandCenterV2() {
         buktiFoto: dispatchForm.buktiFoto
       };
 
+      // TO DO : Fix the API create / update -- It should be create tho..
       const response = await fetch(`http://localhost:4000/api/pengiriman`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
