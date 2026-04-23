@@ -36,6 +36,18 @@ export class PermintaanController {
         }
     }
 
+    async update(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const data = req.body;
+            data.idPermintaan = id;
+            const saved = await this.repository.save(data);
+            res.json({ success: true, data: saved });
+        } catch (error: any) {
+            res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
     async generatePenawaran(req: Request, res: Response) {
         try {
             const { id } = req.params;

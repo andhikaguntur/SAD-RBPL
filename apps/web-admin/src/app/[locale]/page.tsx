@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
   ThemeIcon, Container, Divider, Table, Progress, Avatar, 
@@ -9,11 +9,70 @@ import {
 import { 
   IconCash, IconTruckDelivery, IconAlertCircle, IconArrowUpRight, 
   IconArrowDownRight, IconDotsVertical, IconEngine, IconCalendarStats,
-  IconPlus, IconFileAnalytics, IconMessageReport, IconCircleCheck
+  IconPlus, IconFileAnalytics, IconMessageReport, IconCircleCheck,
+  IconCheck, IconX 
 } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 
 export default function SADAdminDashboard() {
   const [period, setPeriod] = useState<string | null>('7d');
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/dashboard/stats');
+      const json = await res.json();
+      if (json.success) {
+        setStats(json.data);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal mengambil statistik dashboard', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const handlePaymentAction = async (id: string, action: 'Lunas' | 'Ditolak') => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/pembayaran/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: action })
+      });
+      const json = await res.json();
+      if (json.success) {
+        notifications.show({ title: 'Berhasil', message: `Pembayaran ${id} diubah ke ${action}`, color: action === 'Lunas' ? 'green' : 'red' });
+        await fetchStats();
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal memproses pembayaran', color: 'red' });
+    }
+  };
+
+  const handleDeliveryAction = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/pengiriman/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Disewa' })
+      });
+      const json = await res.json();
+      if (json.success) {
+        notifications.show({ title: 'Berhasil', message: `Unit pengiriman ${id} telah divalidasi`, color: 'green' });
+        await fetchStats();
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal memproses pengiriman', color: 'red' });
+    }
+  };
+
+  if (!stats && loading) return <Container p="xl"><Text>Memuat data Dashboard...</Text></Container>;
 
   return (
     <Container size="100%" p="xl" bg="#fcfcfc">
@@ -40,19 +99,19 @@ export default function SADAdminDashboard() {
         {/* --- 2. KEY PERFORMANCE INDICATORS (KPI) --- */}
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
           <KPICard 
-            title="Total Pendapatan" val="Rp 128.5M" trend="+12.5%" 
+            title="Total Pendapatan" val={`Rp ${(stats?.revenue || 0).toLocaleString('id-ID')}`} trend="+ Real Time" 
             up={true} icon={<IconCash/>} color="green" 
           />
           <KPICard 
-            title="Unit Sedang Disewa" val="24 Unit" trend="+3 unit" 
+            title="Unit Sedang Disewa" val={`${stats?.rentedUnits || 0} Unit`} trend="Aktif" 
             up={true} icon={<IconTruckDelivery/>} color="blue" 
           />
           <KPICard 
-            title="Menunggu Validasi" val="12 Order" trend="-2" 
+            title="Menunggu Validasi" val={`${stats?.pendingRequests || 0} Order`} trend="Internal" 
             up={false} icon={<IconAlertCircle/>} color="orange" 
           />
           <KPICard 
-            title="Siap Kirim" val="5 Order" trend="Gudang" 
+            title="Siap Kirim" val={`${stats?.readyToShip || 0} Order`} trend="Logistik" 
             up={null} icon={<IconEngine/>} color="indigo" 
           />
         </SimpleGrid>
@@ -64,7 +123,7 @@ export default function SADAdminDashboard() {
             <Group justify="space-between" mb="xl">
               <Box>
                 <Text fw={800} size="lg">Tren Pendapatan Sewa</Text>
-                <Text size="xs" c="dimmed">Visualisasi arus kas masuk bulanan</Text>
+                <Text size="xs" c="dimmed">Visualisasi arus kas masuk</Text>
               </Box>
               <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={18}/></ActionIcon>
             </Group>
@@ -72,7 +131,7 @@ export default function SADAdminDashboard() {
             <Box h={250} bg="gray.0" style={{ borderRadius: '8px', border: '2px dashed #dee2e6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Stack align="center" gap={4}>
                     <IconFileAnalytics size={40} color="#adb5bd" stroke={1} />
-                    <Text c="dimmed" size="xs">Integrasi Grafik Penjualan (Recharts/ApexCharts)</Text>
+                    <Text c="dimmed" size="xs">Data terpantau dalam 30 hari terakhir</Text>
                 </Stack>
             </Box>
           </Paper>
@@ -81,10 +140,10 @@ export default function SADAdminDashboard() {
           <Paper withBorder radius="md" p="lg" shadow="sm">
             <Text fw={800} size="lg" mb="xl">Utilisasi Armada</Text>
             <Stack gap="xl">
-               <FleetProgress label="Genset 50kVA" value={85} color="blue" count="12/15" />
-               <FleetProgress label="Genset 100kVA" value={60} color="indigo" count="6/10" />
-               <FleetProgress label="Genset 250kVA" value={40} color="cyan" count="2/5" />
-               <FleetProgress label="Alat Berat" value={95} color="teal" count="19/20" />
+               {(stats?.fleetUtilization || []).map((f: any) => (
+                 <FleetProgress key={f.label} label={f.label} value={f.value} color={f.color} count={f.count} />
+               ))}
+               {!stats?.fleetUtilization?.length && <Text size="sm" c="dimmed">Belum ada unit mesin.</Text>}
             </Stack>
             <Divider my="xl" variant="dashed" />
             <Button fullWidth variant="light" color="blue" rightSection={<IconArrowUpRight size={14}/>}>
@@ -98,7 +157,7 @@ export default function SADAdminDashboard() {
         <Paper withBorder radius="md" shadow="sm" style={{ overflow: 'hidden' }}>
           <Box p="lg" bg="white">
              <Group justify="space-between">
-                <Text fw={800} size="lg">Transaksi Terbaru</Text>
+                <Text fw={800} size="lg">Transaksi & Aksi Cepat</Text>
                 <Button variant="subtle" size="xs">Lihat Semua Arsip</Button>
              </Group>
           </Box>
@@ -108,15 +167,29 @@ export default function SADAdminDashboard() {
                 <Table.Th>Pelanggan</Table.Th>
                 <Table.Th>ID Order</Table.Th>
                 <Table.Th>Nominal</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th ta="right">Aksi</Table.Th>
+                <Table.Th>Status Sistem</Table.Th>
+                <Table.Th ta="right">Aksi Operasional</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              <TransactionRow name="PT. Maju Jaya" id="ORD-881" val="Rp 15.000.000" status="Diterima" color="green" />
-              <TransactionRow name="CV. Bangun Pagi" id="ORD-882" val="Rp 8.500.000" status="Dikirim" color="blue" />
-              <TransactionRow name="Indo Karya" id="ORD-883" val="Rp 22.000.000" status="Validasi" color="orange" />
-              <TransactionRow name="Personal - Budi" id="ORD-884" val="Rp 1.200.000" status="Pending" color="gray" />
+              {(stats?.recentTransactions || []).map((t: any) => (
+                <TransactionRow 
+                  key={t.id} 
+                  name={t.pelanggan} 
+                  id={t.id} 
+                  val={`Rp ${t.nominal.toLocaleString('id-ID')}`} 
+                  status={t.status} 
+                  paymentId={t.pembayaran?.id}
+                  shippingId={t.pengiriman?.id}
+                  onPay={handlePaymentAction}
+                  onShip={handleDeliveryAction}
+                />
+              ))}
+              {!stats?.recentTransactions?.length && (
+                <Table.Tr>
+                  <Table.Td colSpan={5} ta="center" p="xl"><Text c="dimmed">Belum ada transaksi terbaru.</Text></Table.Td>
+                </Table.Tr>
+              )}
             </Table.Tbody>
           </Table>
         </Paper>
@@ -137,7 +210,6 @@ function KPICard({ title, val, trend, up, icon, color }: any) {
           <Badge 
             variant="light" 
             color={up ? 'green' : 'red'} 
-            leftSection={up ? <IconArrowUpRight size={10}/> : <IconArrowDownRight size={10}/>}
           >
             {trend}
           </Badge>
@@ -161,20 +233,38 @@ function FleetProgress({ label, value, color, count }: any) {
     );
 }
 
-function TransactionRow({ name, id, val, status, color }: any) {
+function TransactionRow({ name, id, val, status, paymentId, shippingId, onPay, onShip }: any) {
+    const isPendingPayment = status === 'Menunggu Pembayaran' || (paymentId && status.includes('Validasi'));
+    const isPendingDelivery = status === 'Dikirim';
+
     return (
         <Table.Tr>
             <Table.Td>
                 <Group gap="sm">
-                    <Avatar size="sm" radius="xl" color={color}>{name[0]}</Avatar>
+                    <Avatar size="sm" radius="xl" color="blue">{name[0]}</Avatar>
                     <Text size="sm" fw={600}>{name}</Text>
                 </Group>
             </Table.Td>
             <Table.Td><Text size="xs" c="dimmed">{id}</Text></Table.Td>
             <Table.Td><Text size="sm" fw={700}>{val}</Text></Table.Td>
-            <Table.Td><Badge color={color} variant="dot" size="sm">{status}</Badge></Table.Td>
+            <Table.Td>
+              <Badge color={status.includes('Lunas') ? 'green' : 'orange'} variant="dot" size="sm">
+                {status}
+              </Badge>
+            </Table.Td>
             <Table.Td ta="right">
-                <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16}/></ActionIcon>
+                <Group gap="xs" justify="flex-end">
+                  {paymentId && status !== 'Lunas' && (
+                    <>
+                      <Button size="xs" variant="light" color="green" onClick={() => onPay(paymentId, 'Lunas')}>Terima Bayar</Button>
+                      <Button size="xs" variant="light" color="red" onClick={() => onPay(paymentId, 'Ditolak')}>Tolak</Button>
+                    </>
+                  )}
+                  {isPendingDelivery && (
+                    <Button size="xs" color="indigo" variant="filled" onClick={() => onShip(shippingId)}>Validasi Terima Unit</Button>
+                  )}
+                  <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={16}/></ActionIcon>
+                </Group>
             </Table.Td>
         </Table.Tr>
     );

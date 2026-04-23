@@ -15,58 +15,61 @@ import {
 } from '@tabler/icons-react';
 
 // Mock Data Log (Gabungan RF-003, RF-010, RF-012)
-const ACTIVITY_LOGS = [
-  { 
-    id: 'LOG-881', 
-    timestamp: '19 Feb 2026, 14:20', 
-    admin: 'Budi Santoso', 
-    action: 'Validasi Pembayaran', 
-    target: 'INV-2026-001',
-    type: 'finance',
-    detail: { old: 'Menunggu', new: 'Lunas', note: 'Bukti transfer valid (BCA)' }
-  },
-  { 
-    id: 'LOG-880', 
-    timestamp: '19 Feb 2026, 11:05', 
-    admin: 'Siti Aminah', 
-    action: 'Update Status Mesin', 
-    target: 'MSN-501 (Genset 50kVA)',
-    type: 'logistic',
-    detail: { old: 'Dikirim', new: 'Disewa', note: 'Unit diterima di Site Sleman' }
-  },
-  { 
-    id: 'LOG-879', 
-    timestamp: '18 Feb 2026, 16:45', 
-    admin: 'Budi Santoso', 
-    action: 'Penyesuaian Harga', 
-    target: 'REQ-092',
-    type: 'pricing',
-    detail: { old: 'Rp 5.500.000', new: 'Rp 5.250.000', note: 'Diskon loyalitas pelanggan 5%' }
-  },
-  { 
-    id: 'LOG-878', 
-    timestamp: '18 Feb 2026, 09:12', 
-    admin: 'Sistem Otomatis', 
-    action: 'Pembatalan Otomatis', 
-    target: 'REQ-088',
-    type: 'system',
-    detail: { old: 'Menunggu', new: 'Dibatalkan', note: 'Melebihi batas waktu upload bukti (24 jam)' }
-  },
-];
+import { useEffect } from 'react';
 
 export default function AuditLogSystem() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string | null>('Semua');
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const [loading, setLoading] = useState(true);
+
+  const [logs, setLogs] = useState<any[]>([]);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/audit-log');
+      const json = await res.json();
+      if (json.success) {
+        setLogs(json.data.map((l: any) => {
+          // Parse timestamp to readable format
+          const d = new Date(l.timestamp);
+          const timeStr = d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+          
+          return {
+            id: l.idLog,
+            timestamp: timeStr,
+            admin: 'Admin', // Default actor
+            action: l.aksi,
+            target: l.idTarget,
+            type: l.entitasTarget === 'Pembayaran' ? 'finance' : l.entitasTarget === 'Pengiriman' ? 'logistic' : 'system',
+            detail: { 
+              old: 'Data Masuk', 
+              new: l.keterangan, 
+              note: `Aksi ${l.aksi} pada ${l.entitasTarget}` 
+            }
+          };
+        }));
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal memuat log audit', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
   const filteredLogs = useMemo(() => {
-    return ACTIVITY_LOGS.filter(log => {
+    return logs.filter(log => {
       const matchSearch = log.admin.toLowerCase().includes(search.toLowerCase()) || log.target.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === 'Semua' || log.type === typeFilter;
       return matchSearch && matchType;
     });
-  }, [search, typeFilter]);
+  }, [search, typeFilter, logs]);
 
   const handleOpenLog = (log: any) => {
     setSelectedLog(log);

@@ -4,6 +4,6 @@ export class Pengiriman {
     constructor(public props: PengirimanType) { }
 
     getId() {
-        return this.props.idPengiriman
+        return this.props.id
     }
 }

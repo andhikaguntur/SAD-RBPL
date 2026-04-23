@@ -22,6 +22,8 @@ interface PaymentData {
   bukti: string;
 }
 
+import { useEffect } from 'react';
+
 export default function ValidasiPembayaranUX() {
   const [opened, { open, close }] = useDisclosure(false);
   const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
@@ -31,11 +33,35 @@ export default function ValidasiPembayaranUX() {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingAction, setPendingAction] = useState<'Lunas' | 'Ditolak' | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [payments, setPayments] = useState<PaymentData[]>([
-    { id: 'INV-001', pelanggan: 'PT. Maju Jaya', total: 5500000, tanggal: '20 Okt 2025', status: 'Menunggu Validasi', bukti: 'https://placehold.co/1000x1500?text=Bukti+INV-001' },
-    { id: 'INV-002', pelanggan: 'CV. Bangun Pagi', total: 3250000, tanggal: '21 Okt 2025', status: 'Menunggu Validasi', bukti: 'https://placehold.co/1000x1500?text=Bukti+INV-002' },
-  ]);
+  const [payments, setPayments] = useState<PaymentData[]>([]);
+
+  const fetchPayments = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/pembayaran');
+      const json = await res.json();
+      if (json.success) {
+        setPayments(json.data.map((p: any) => ({
+          id: p.id,
+          pelanggan: p.permintaan?.pelanggan || 'PT. Maju Jaya',
+          total: p.total,
+          tanggal: p.tanggal,
+          status: p.status,
+          bukti: p.bukti
+        })));
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal memuat data pembayaran', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
 
   const resetState = () => {
     setSelectedPayment(null);
@@ -91,29 +117,33 @@ export default function ValidasiPembayaranUX() {
     if (!selectedPayment || !pendingAction) return;
 
     try {
-      // Simulasi API call
-      await new Promise((res) => setTimeout(res, 1000));
-
-      setPayments(prev =>
-        prev.map(p =>
-          p.id === selectedPayment.id
-            ? { ...p, status: pendingAction }
-            : p
-        )
-      );
-
-      notifications.show({
-        title: 'Status berhasil diperbarui',
-        message: `Invoice ${selectedPayment.id} diubah menjadi ${pendingAction}.`,
-        color: pendingAction === 'Lunas' ? 'blue' : 'red',
-        icon: <IconCheck size={18} />,
+      const res = await fetch(`http://localhost:4000/api/pembayaran/${selectedPayment.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: pendingAction,
+          reason: rejectionReason // Audit info if needed
+        })
       });
 
-      handleCloseAll();
-    } catch {
+      const json = await res.json();
+
+      if (json.success) {
+        notifications.show({
+          title: 'Status berhasil diperbarui',
+          message: `Invoice ${selectedPayment.id} diubah menjadi ${pendingAction}.`,
+          color: pendingAction === 'Lunas' ? 'blue' : 'red',
+          icon: <IconCheck size={18} />,
+        });
+        await fetchPayments();
+        handleCloseAll();
+      } else {
+        throw new Error(json.message);
+      }
+    } catch (error: any) {
       notifications.show({
         title: 'Terjadi kesalahan',
-        message: 'Gagal memperbarui status pembayaran.',
+        message: error.message || 'Gagal memperbarui status pembayaran.',
         color: 'red',
         icon: <IconX size={18} />,
       });

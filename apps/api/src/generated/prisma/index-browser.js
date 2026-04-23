@@ -123,15 +123,55 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.MesinScalarFieldEnum = {
   idMesin: 'idMesin',
   namaMesin: 'namaMesin',
-  status: 'status'
+  kapasitas: 'kapasitas',
+  status: 'status',
+  lokasi: 'lokasi',
+  lastService: 'lastService',
+  pelanggan: 'pelanggan'
 };
 
 exports.Prisma.PermintaanSewaScalarFieldEnum = {
   idPermintaan: 'idPermintaan',
-  idMesin: 'idMesin',
-  durasi: 'durasi',
+  pelanggan: 'pelanggan',
   lokasi: 'lokasi',
-  status: 'status'
+  durasi: 'durasi',
+  status: 'status',
+  tanggalFormat: 'tanggalFormat'
+};
+
+exports.Prisma.PermintaanMesinScalarFieldEnum = {
+  idPermintaan: 'idPermintaan',
+  idMesin: 'idMesin',
+  qty: 'qty',
+  harga: 'harga',
+  diskon: 'diskon'
+};
+
+exports.Prisma.PembayaranScalarFieldEnum = {
+  id: 'id',
+  idPermintaan: 'idPermintaan',
+  total: 'total',
+  tanggal: 'tanggal',
+  status: 'status',
+  bukti: 'bukti'
+};
+
+exports.Prisma.PengirimanScalarFieldEnum = {
+  id: 'id',
+  idPermintaan: 'idPermintaan',
+  tanggalKirim: 'tanggalKirim',
+  sopir: 'sopir',
+  status: 'status',
+  buktiSuratJalan: 'buktiSuratJalan'
+};
+
+exports.Prisma.AuditLogScalarFieldEnum = {
+  idLog: 'idLog',
+  entitasTarget: 'entitasTarget',
+  idTarget: 'idTarget',
+  aksi: 'aksi',
+  keterangan: 'keterangan',
+  timestamp: 'timestamp'
 };
 
 exports.Prisma.SortOrder = {
@@ -144,10 +184,19 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
 
 exports.Prisma.ModelName = {
   Mesin: 'Mesin',
-  PermintaanSewa: 'PermintaanSewa'
+  PermintaanSewa: 'PermintaanSewa',
+  PermintaanMesin: 'PermintaanMesin',
+  Pembayaran: 'Pembayaran',
+  Pengiriman: 'Pengiriman',
+  AuditLog: 'AuditLog'
 };
 
 /**

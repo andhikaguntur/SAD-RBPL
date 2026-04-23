@@ -1,6 +1,9 @@
 export type PengirimanType = {
-    idPengiriman: number
-    tanggalKirim: string
-    status: "DIKIRIM" | "DIKEMBALIKAN"
-    sopir: string
-}
+  id: string;
+  idPermintaan: string;
+  tanggalKirim: string;
+  sopir: string;
+  status: string;
+  buktiSuratJalan: string;
+  permintaan?: any;
+};

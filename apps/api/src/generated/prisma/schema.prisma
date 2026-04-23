@@ -13,15 +13,70 @@ datasource db {
 }
 
 model Mesin {
-  idMesin   Int    @id @default(autoincrement())
-  namaMesin String
-  status    String
+  idMesin     String    @id // misal "MSN-501"
+  namaMesin   String
+  kapasitas   String    @default("")
+  status      String
+  lokasi      String    @default("")
+  lastService DateTime?
+  pelanggan   String?
+
+  permintaan PermintaanMesin[]
 }
 
 model PermintaanSewa {
-  idPermintaan String @id @default(uuid())
-  idMesin      Int
-  durasi       Int
-  lokasi       String
+  idPermintaan  String @id @default(uuid())
+  pelanggan     String @default("")
+  lokasi        String
+  durasi        Int    @default(1)
+  status        String
+  tanggalFormat String @default("")
+
+  mesin      PermintaanMesin[]
+  pembayaran Pembayaran[]
+  pengiriman Pengiriman[]
+}
+
+model PermintaanMesin {
+  idPermintaan String
+  idMesin      String
+  qty          Int    @default(1)
+  harga        Int    @default(0)
+  diskon       Int    @default(0)
+
+  permintaan PermintaanSewa @relation(fields: [idPermintaan], references: [idPermintaan], onDelete: Cascade)
+  mesin      Mesin          @relation(fields: [idMesin], references: [idMesin], onDelete: Cascade)
+
+  @@id([idPermintaan, idMesin])
+}
+
+model Pembayaran {
+  id           String @id @default(uuid())
+  idPermintaan String
+  total        Int
+  tanggal      String
   status       String
+  bukti        String @default("")
+
+  permintaan PermintaanSewa @relation(fields: [idPermintaan], references: [idPermintaan], onDelete: Cascade)
+}
+
+model Pengiriman {
+  id              String @id @default(uuid())
+  idPermintaan    String
+  tanggalKirim    String
+  sopir           String
+  status          String
+  buktiSuratJalan String @default("")
+
+  permintaan PermintaanSewa @relation(fields: [idPermintaan], references: [idPermintaan], onDelete: Cascade)
+}
+
+model AuditLog {
+  idLog         String   @id @default(uuid())
+  entitasTarget String
+  idTarget      String
+  aksi          String
+  keterangan    String
+  timestamp     DateTime @default(now())
 }

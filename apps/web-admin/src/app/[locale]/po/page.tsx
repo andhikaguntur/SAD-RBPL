@@ -12,39 +12,58 @@ import {
   IconX, IconFileDescription} from '@tabler/icons-react';
 
 // Data Mockup
-const ARCHIVE_DATA = [
-  { 
-    id: 'PO-2026-001', date: '20 Feb 2026', client: 'PT. Maju Jaya', 
-    address: 'Jl. Kaliurang KM 12, Sleman', total: 15500000, 
-    status: 'Selesai', items: [
-        { name: 'Sewa Genset 50kVA', qty: 1, price: 15000000 },
-        { name: 'Biaya Mobilisasi', qty: 1, price: 500000 }
-    ]
-  },
-  { 
-    id: 'PO-2026-002', date: '18 Jan 2026', client: 'CV. Bangun Pagi', 
-    address: 'Jl. Godean, Yogyakarta', total: 8200000, 
-    status: 'Dibatalkan', items: [
-        { name: 'Sewa Genset 25kVA', qty: 1, price: 8200000 }
-    ]
-  },
-];
+import { useEffect } from 'react';
 
 export default function ArsipPurchaseOrderPro() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | null>('Semua');
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [opened, { open, close }] = useDisclosure(false);
+  const [loading, setLoading] = useState(true);
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  const [archiveData, setArchiveData] = useState<any[]>([]);
+
+  const fetchArchive = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      const json = await res.json();
+      if (json.success) {
+        // Filter those that are validated/finished for the PO list
+        setArchiveData(json.data.map((req: any) => ({
+          id: req.idPermintaan,
+          date: req.tanggalFormat || '20 Feb 2026',
+          client: req.pelanggan || 'Tanpa Nama',
+          address: req.lokasi,
+          total: req.mesin.reduce((acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty, 0),
+          status: req.status === 'Divalidasi' ? 'Selesai' : req.status === 'Dibatalkan' ? 'Dibatalkan' : 'Aktif',
+          items: req.mesin.map((m: any) => ({
+            name: m.mesin?.namaMesin || 'Mesin',
+            qty: m.qty,
+            price: m.harga - m.diskon
+          }))
+        })));
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error', message: 'Gagal memuat arsip PO', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArchive();
+  }, []);
 
   // Logic Search & Filter
   const filteredData = useMemo(() => {
-    return ARCHIVE_DATA.filter(item => {
+    return archiveData.filter(item => {
       const matchSearch = item.client.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === 'Semua' || item.status === filterStatus;
       return matchSearch && matchStatus;
     });
-  }, [search, filterStatus]);
+  }, [search, filterStatus, archiveData]);
 
   const handleOpenInvoice = (po: any) => {
     setSelectedPO(po);

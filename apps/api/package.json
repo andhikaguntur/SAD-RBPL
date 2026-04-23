@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "REST API handling authentication, business logic, and data persistence. REST API service for user, manager, and admin applications",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.ts",
     "typecheck": "tsc --noEmit",
+    "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "lint": "eslint ."
   },
   "keywords": [],
@@ -30,6 +31,7 @@
     "@types/pg": "^8.20.0",
     "prisma": "^7.6.0",
     "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   }
 }

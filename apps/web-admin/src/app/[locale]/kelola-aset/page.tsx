@@ -1,28 +1,21 @@
 'use client'
 
-import { useState, useMemo } from 'react';
-import { 
-  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge, 
-  TextInput, Card, ThemeIcon, Drawer, Select, 
-  Container, SegmentedControl, Table, Divider, LoadingOverlay
+import { useState, useMemo, useEffect } from 'react';
+import {
+  Group, Text, Paper, Title, Stack, Button, Box, SimpleGrid, Badge,
+  TextInput, Card, ThemeIcon, Drawer, Select,
+  Container, SegmentedControl, Table, Divider, LoadingOverlay, UnstyledButton
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { 
-  IconSearch, IconLayoutGrid, IconList, IconEngine, 
+import {
+  IconSearch, IconLayoutGrid, IconList, IconEngine,
   IconTools, IconCircleCheck, IconUser, IconMapPin, IconSettings,
   IconActivity, IconCloudDownload, IconAlertCircle,
   IconHistory
 } from '@tabler/icons-react';
 
-// Data Mockup
-const INITIAL_MACHINES = [
-  { id: 'MSN-501', model: 'Genset Perkins', cap: '50kVA', status: 'Tersedia', location: 'Gudang Utama', lastService: '2026-01-10', customer: null },
-  { id: 'MSN-502', model: 'Genset Perkins', cap: '50kVA', status: 'Disewa', location: 'Site Sleman', lastService: '2025-12-12', customer: 'PT. Maju Jaya' },
-  { id: 'MSN-101', model: 'Genset Cummins', cap: '100kVA', status: 'Perbaikan', location: 'Bengkel Pusat', lastService: '2026-02-15', customer: null },
-  { id: 'MSN-102', model: 'Genset Cummins', cap: '100kVA', status: 'Dipesan', location: 'Gudang Utama', lastService: '2026-02-01', customer: 'CV. Bangun Pagi' },
-];
-
+// Data Mockup diubah menjadi fetching dari API
 export default function FleetInventorySAD() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
@@ -30,22 +23,52 @@ export default function FleetInventorySAD() {
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
+  const [machines, setMachines] = useState<any[]>([]);
+
+  // Fetch dari Backend
+  const fetchMachines = async () => {
+    try {
+      const res = await fetch("http://localhost:4000/api/mesin");
+      const json = await res.json();
+      if (json.success) {
+        // Map backend properties to frontend property shapes just in case,
+        // or directly use backend shape. 
+        // Backend shape: idMesin, namaMesin, kapasitas, status, lokasi, lastService, pelanggan
+        const mapped = json.data.map((m: any) => ({
+          id: m.idMesin,
+          model: m.namaMesin,
+          cap: m.kapasitas || '-',
+          status: m.status,
+          location: m.lokasi || '-',
+          lastService: m.lastService ? new Date(m.lastService).toLocaleDateString() : 'Belum Pernah Service',
+          customer: m.pelanggan
+        }));
+        setMachines(mapped);
+      }
+    } catch (error) {
+      notifications.show({ title: 'Error API', message: 'Gagal mengambil data mesin', color: 'red' });
+    }
+  };
+
+  useEffect(() => {
+    fetchMachines();
+  }, []);
 
   // Logic: Filtering
   const filteredData = useMemo(() => {
-    return INITIAL_MACHINES.filter(m => {
+    return machines.filter(m => {
       const matchSearch = m.id.toLowerCase().includes(search.toLowerCase()) || m.model.toLowerCase().includes(search.toLowerCase());
       const matchStatus = filter === 'Semua' || m.status === filter;
       return matchSearch && matchStatus;
     });
-  }, [search, filter]);
+  }, [search, filter, machines]);
 
-  // Statistik (Flat Design - Non Interactive)
+  // Statistik 
   const stats = {
-    total: INITIAL_MACHINES.length,
-    avail: INITIAL_MACHINES.filter(m => m.status === 'Tersedia').length,
-    rented: INITIAL_MACHINES.filter(m => m.status === 'Disewa').length,
-    fix: INITIAL_MACHINES.filter(m => m.status === 'Perbaikan').length,
+    total: machines.length,
+    avail: machines.filter(m => m.status === 'Tersedia').length,
+    rented: machines.filter(m => m.status === 'Disewa').length,
+    fix: machines.filter(m => m.status === 'Perbaikan').length,
   };
 
   const handleManageUnit = (unit: any) => {
@@ -55,53 +78,68 @@ export default function FleetInventorySAD() {
 
   const handleStatusUpdate = async (newStatus: string) => {
     setLoading(true);
-    await new Promise(res => setTimeout(res, 800)); // Simulasi API
-    notifications.show({
-      title: 'Status Diperbarui',
-      message: `Unit ${selectedUnit.id} sekarang berstatus ${newStatus}.`,
-      color: 'blue',
-      icon: <IconCircleCheck size={18} />
-    });
-    setLoading(false);
-    closeDrawer();
+    try {
+      const res = await fetch(`http://localhost:4000/api/mesin/${selectedUnit.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notifications.show({
+          title: 'Status Diperbarui',
+          message: `Unit ${selectedUnit.id} sekarang berstatus ${newStatus}.`,
+          color: 'blue',
+          icon: <IconCircleCheck size={18} />
+        });
+        await fetchMachines(); // Refresh data
+        closeDrawer();
+      } else {
+        notifications.show({ title: 'Gagal', message: data.message, color: 'red' });
+      }
+    } catch (e) {
+      notifications.show({ title: 'Error', message: 'Gagal menghubungi server', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Container size="100%" p="xl" bg="#fcfcfc" style={{ minHeight: '100vh' }}>
       <Stack gap="xl">
-        
+
         {/* --- 1. HEADER & EXPORT --- */}
         <Group justify="space-between" align="center">
           <Box>
             <Title order={2} fw={900} c="gray.8">Fleet Inventory Control</Title>
             <Text c="dimmed" size="sm">Manajemen status operasional dan penempatan aset mesin.</Text>
           </Box>
-          <Button variant="outline" color="gray" leftSection={<IconCloudDownload size={18}/>}>
+          <Button variant="outline" color="gray" leftSection={<IconCloudDownload size={18} />}>
             Export CSV
           </Button>
         </Group>
 
         {/* --- 2. SUMMARY STATS (Flat/Static) --- */}
         <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="md">
-          <StatDisplay title="Total Armada" val={stats.total} color="blue" icon={<IconEngine/>} />
-          <StatDisplay title="Siap Sewa" val={stats.avail} color="green" icon={<IconCircleCheck/>} />
-          <StatDisplay title="Aktif di Site" val={stats.rented} color="indigo" icon={<IconActivity/>} />
-          <StatDisplay title="Maintenance" val={stats.fix} color="red" icon={<IconAlertCircle/>} />
+          <StatDisplay title="Total Armada" val={stats.total} color="blue" icon={<IconEngine />} />
+          <StatDisplay title="Siap Sewa" val={stats.avail} color="green" icon={<IconCircleCheck />} />
+          <StatDisplay title="Aktif di Site" val={stats.rented} color="indigo" icon={<IconActivity />} />
+          <StatDisplay title="Maintenance" val={stats.fix} color="red" icon={<IconAlertCircle />} />
         </SimpleGrid>
 
         {/* --- 3. SEARCH & CONTROL --- */}
         <Paper withBorder p="md" radius="md" bg="white">
           <Group justify="space-between">
             <Group style={{ flex: 1 }}>
-              <TextInput 
-                placeholder="Cari ID Unit atau Model..." 
+              <TextInput
+                placeholder="Cari ID Unit atau Model..."
                 leftSection={<IconSearch size={18} stroke={1.5} />}
                 w={350} radius="md" variant="filled"
                 value={search} onChange={(e) => setSearch(e.target.value)}
               />
-              <Select 
-                placeholder="Filter Status" 
-                data={['Semua', 'Tersedia', 'Disewa', 'Perbaikan', 'Dipesan']} 
+              <Select
+                placeholder="Filter Status"
+                data={['Semua', 'Tersedia', 'Disewa', 'Perbaikan', 'Dipesan']}
                 value={filter} onChange={setFilter}
                 radius="md" w={180}
               />
@@ -110,8 +148,8 @@ export default function FleetInventorySAD() {
               value={view}
               onChange={(value: any) => setView(value)}
               data={[
-                { label: <IconLayoutGrid size={16}/>, value: 'grid' },
-                { label: <IconList size={16}/>, value: 'list' },
+                { label: <IconLayoutGrid size={16} />, value: 'grid' },
+                { label: <IconList size={16} />, value: 'list' },
               ]}
             />
           </Group>
@@ -132,22 +170,22 @@ export default function FleetInventorySAD() {
                 <Stack gap="xs" mt="md" mb="xl">
                   <Text size="sm" fw={700}>{m.model} • {m.cap}</Text>
                   <Group gap={6}>
-                    <IconMapPin size={14} color="gray"/>
+                    <IconMapPin size={14} color="gray" />
                     <Text size="xs" c="dimmed">{m.location}</Text>
                   </Group>
                   <Group gap={6}>
-                    <IconUser size={14} color="gray"/>
+                    <IconUser size={14} color="gray" />
                     <Text size="xs" c="dimmed">{m.customer || 'Stock Internal'}</Text>
                   </Group>
                 </Stack>
 
-                <Button 
-                    variant="light" 
-                    fullWidth 
-                    leftSection={<IconSettings size={16}/>}
-                    onClick={() => handleManageUnit(m)}
+                <Button
+                  variant="light"
+                  fullWidth
+                  leftSection={<IconSettings size={16} />}
+                  onClick={() => handleManageUnit(m)}
                 >
-                    Kelola Aset
+                  Kelola Aset
                 </Button>
               </Card>
             ))}
@@ -195,43 +233,43 @@ export default function FleetInventorySAD() {
         {selectedUnit && (
           <Stack gap="xl">
             <Box>
-                <Title order={3} c="blue.9">{selectedUnit.id}</Title>
-                <Text size="sm" c="dimmed">{selectedUnit.model} ({selectedUnit.cap})</Text>
+              <Title order={3} c="blue.9">{selectedUnit.id}</Title>
+              <Text size="sm" c="dimmed">{selectedUnit.model} ({selectedUnit.cap})</Text>
             </Box>
 
             <Divider label="Ubah Status Operasional" labelPosition="center" />
 
             <SimpleGrid cols={2} spacing="sm">
-                <StatusActionButton 
-                    label="Tersedia" icon={<IconCircleCheck/>} color="green"
-                    active={selectedUnit.status === 'Tersedia'}
-                    onClick={() => handleStatusUpdate('Tersedia')}
-                />
-                <StatusActionButton 
-                    label="Maintenance" icon={<IconTools/>} color="red"
-                    active={selectedUnit.status === 'Perbaikan'}
-                    onClick={() => handleStatusUpdate('Perbaikan')}
-                />
+              <StatusActionButton
+                label="Tersedia" icon={<IconCircleCheck />} color="green"
+                active={selectedUnit.status === 'Tersedia'}
+                onClick={() => handleStatusUpdate('Tersedia')}
+              />
+              <StatusActionButton
+                label="Maintenance" icon={<IconTools />} color="red"
+                active={selectedUnit.status === 'Perbaikan'}
+                onClick={() => handleStatusUpdate('Perbaikan')}
+              />
             </SimpleGrid>
 
             <Box>
-                <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="md">Riwayat Lokasi & Aktivitas</Text>
-                <Paper withBorder p="md" radius="md" bg="gray.0">
-                    <Stack gap="xs">
-                        <Group justify="space-between">
-                            <Text size="xs" fw={600}>Penempatan Saat Ini</Text>
-                            <Badge variant="outline">{selectedUnit.location}</Badge>
-                        </Group>
-                        <Group justify="space-between">
-                            <Text size="xs" fw={600}>Service Terakhir</Text>
-                            <Text size="xs">{selectedUnit.lastService}</Text>
-                        </Group>
-                    </Stack>
-                </Paper>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="md">Riwayat Lokasi & Aktivitas</Text>
+              <Paper withBorder p="md" radius="md" bg="gray.0">
+                <Stack gap="xs">
+                  <Group justify="space-between">
+                    <Text size="xs" fw={600}>Penempatan Saat Ini</Text>
+                    <Badge variant="outline">{selectedUnit.location}</Badge>
+                  </Group>
+                  <Group justify="space-between">
+                    <Text size="xs" fw={600}>Service Terakhir</Text>
+                    <Text size="xs">{selectedUnit.lastService}</Text>
+                  </Group>
+                </Stack>
+              </Paper>
             </Box>
 
-            <Button variant="outline" color="gray" fullWidth mt="xl" leftSection={<IconHistory size={18}/>}>
-                Buka Log Audit Unit
+            <Button variant="outline" color="gray" fullWidth mt="xl" leftSection={<IconHistory size={18} />}>
+              Buka Log Audit Unit
             </Button>
           </Stack>
         )}
@@ -257,34 +295,33 @@ function StatDisplay({ title, val, color, icon }: any) {
 }
 
 function StatusActionButton({ label, icon, color, active, onClick }: any) {
-    return (
-        <UnstyledButton 
-            onClick={onClick}
-            style={{
-                padding: '16px',
-                borderRadius: '8px',
-                border: `1.5px solid ${active ? `var(--mantine-color-${color}-6)` : '#e9ecef'}`,
-                backgroundColor: active ? `var(--mantine-color-${color}-0)` : 'white',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease'
-            }}
-        >
-            <ThemeIcon color={color} variant={active ? 'filled' : 'light'} size="lg">
-                {icon}
-            </ThemeIcon>
-            <Text size="xs" fw={700} c={active ? `${color}.9` : 'gray.7'}>{label}</Text>
-        </UnstyledButton>
-    );
+  return (
+    <UnstyledButton
+      onClick={onClick}
+      style={{
+        padding: '16px',
+        borderRadius: '8px',
+        border: `1.5px solid ${active ? `var(--mantine-color-${color}-6)` : '#e9ecef'}`,
+        backgroundColor: active ? `var(--mantine-color-${color}-0)` : 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '8px',
+        transition: 'all 0.2s ease'
+      }}
+    >
+      <ThemeIcon color={color} variant={active ? 'filled' : 'light'} size="lg">
+        {icon}
+      </ThemeIcon>
+      <Text size="xs" fw={700} c={active ? `${color}.9` : 'gray.7'}>{label}</Text>
+    </UnstyledButton>
+  );
 }
 
 // Gunakan UnstyledButton dari Mantine untuk custom button
-import { UnstyledButton } from '@mantine/core';
 
 const getStatusColor = (s: string) => {
-  switch(s) {
+  switch (s) {
     case 'Tersedia': return 'green';
     case 'Disewa': return 'blue';
     case 'Perbaikan': return 'red';

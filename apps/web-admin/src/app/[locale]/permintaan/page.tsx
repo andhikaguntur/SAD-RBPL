@@ -11,34 +11,53 @@ import {
   IconCheck, IconX, IconAlertCircle 
 } from '@tabler/icons-react';
 
+import { useEffect } from 'react';
+
 export default function KonfirmasiMultiMesin() {
   const [openedRow, setOpenedRow] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [requests, setRequests] = useState([
-    { 
-      id: 'REQ-001', 
-      pelanggan: 'PT. Maju Jaya', 
-      lokasi: 'Sleman',
-      status: 'Menunggu Validasi',
-      machines: [
-        { id: 'M-01', jenis: 'Genset 50kVA', qty: 2, harga: 1500000, diskon: 0 },
-        { id: 'M-02', jenis: 'Genset 100kVA', qty: 1, harga: 2500000, diskon: 0 },
-      ]
-    },
-    { 
-      id: 'REQ-002', 
-      pelanggan: 'PT. Maju Prima', 
-      lokasi: 'Sleman',
-      status: 'Menunggu Validasi',
-      machines: [
-        { id: 'M-03', jenis: 'Genset 50kVA', qty: 1, harga: 750000, diskon: 0 },
-        { id: 'M-04', jenis: 'Genset 100kVA', qty: 1, harga: 2500000, diskon: 0 },
-      ]
-    },
-  ]);
+  const [requests, setRequests] = useState<any[]>([]);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      const json = await res.json();
+      if (json.success) {
+        // Map backend structure to frontend structure
+        const mapped = json.data.map((req: any) => ({
+          id: req.idPermintaan,
+          pelanggan: req.pelanggan || 'Tanpa Nama',
+          lokasi: req.lokasi,
+          status: req.status,
+          machines: req.mesin.map((m: any) => ({
+            id: m.idMesin,
+            jenis: m.mesin?.namaMesin || 'Mesin',
+            qty: m.qty,
+            harga: m.harga,
+            diskon: m.diskon
+          }))
+        }));
+        setRequests(mapped);
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: 'Gagal mengambil data permintaan dari server',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
 
   const updateMachineValue = (
     requestId: string, 
@@ -52,7 +71,7 @@ export default function KonfirmasiMultiMesin() {
 
         return {
           ...req,
-          machines: req.machines.map((m) => 
+          machines: req.machines.map((m: any) => 
             m.id === machineId 
               ? { ...m, [field]: Number.isFinite(value) ? value : 0 } 
               : m
@@ -75,42 +94,59 @@ export default function KonfirmasiMultiMesin() {
   };
 
   const closeConfirm = () => {
-    if (isSubmitting) return; // Cegah tutup saat proses
+    if (isSubmitting) return; 
     setConfirmOpen(false);
     setSelectedRequestId(null);
   };
 
-  // LOGIK INTEGRASI API (SIMULASI)
   const executeSendToCustomer = async () => {
     if (!selectedRequestId) return;
 
     setIsSubmitting(true);
     try {
-      // Simulasi API Call ke endpoint penawaran
-      // await axios.post('/api/penawaran/validasi', { id: selectedRequestId });
-      await new Promise((res) => setTimeout(res, 1500));
+      const targetReq = requests.find(r => r.id === selectedRequestId);
+      if (!targetReq) return;
 
-      setRequests((prev) =>
-        prev.map((req) =>
-          req.id === selectedRequestId
-            ? { ...req, status: 'Divalidasi' }
-            : req
-        )
-      );
+      // Persiapkan data untuk API (Sesuai skema relational kita)
+      const payload = {
+        pelanggan: targetReq.pelanggan,
+        lokasi: targetReq.lokasi,
+        durasi: targetReq.durasi,
+        status: 'Divalidasi',
+        mesin: targetReq.machines.map((m: any) => ({
+          idMesin: m.id,
+          qty: m.qty,
+          harga: m.harga,
+          diskon: m.diskon
+        }))
+      };
 
-      notifications.show({
-        title: 'Penawaran Terkirim',
-        message: `Harga penawaran untuk ${selectedRequestId} telah berhasil divalidasi dan dikirim ke pelanggan.`,
-        color: 'green',
-        icon: <IconCheck size={18} />,
+      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/${selectedRequestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
+
+      const json = await res.json();
+
+      if (json.success) {
+        notifications.show({
+          title: 'Penawaran Terkirim',
+          message: `Harga penawaran untuk ${selectedRequestId} telah berhasil divalidasi dan dikirim ke pelanggan.`,
+          color: 'green',
+          icon: <IconCheck size={18} />,
+        });
+        await fetchRequests();
+      } else {
+        throw new Error(json.message);
+      }
 
       setOpenedRow(null);
       setConfirmOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       notifications.show({
         title: 'Gagal Memproses',
-        message: 'Terjadi kesalahan sistem saat mengirim penawaran.',
+        message: error.message || 'Terjadi kesalahan sistem saat mengirim penawaran.',
         color: 'red',
         icon: <IconAlertCircle size={18} />,
       });

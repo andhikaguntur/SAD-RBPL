@@ -1,9 +1,20 @@
-export type StatusPermintaan = "MENUNGGU" | "DIPROSES" | "DITOLAK";
+export type StatusPermintaan = string;
+
+export type PermintaanMesinType = {
+  idPermintaan: string;
+  idMesin: string;
+  qty: number;
+  harga: number;
+  diskon: number;
+  mesin?: any;
+}
 
 export type PermintaanSewaType = {
     idPermintaan: string
-    idMesin: string
-    durasi: number
+    pelanggan: string
     lokasi: string
+    durasi: number
     status: StatusPermintaan
+    tanggalFormat: string
+    mesin?: PermintaanMesinType[]
 }

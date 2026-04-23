@@ -52,6 +52,8 @@ interface OrderData {
   buktiSuratJalan: string;
 }
 
+import { useEffect } from 'react';
+
 export default function KonfirmasiPenerimaanInteraktif() {
   const [opened, { open, close }] = useDisclosure(false);
   const [confirmOpened, { open: openConfirm, close: closeConfirm }] =
@@ -60,32 +62,39 @@ export default function KonfirmasiPenerimaanInteraktif() {
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [deliveries, setDeliveries] = useState<OrderData[]>([
-    {
-      id: 'ORD-501',
-      pelanggan: 'PT. Maju Jaya',
-      tanggalKirim: '18 Okt 2025',
-      sopir: 'Andi Supriadi',
-      status: 'Dikirim',
-      unit: [
-        { id: 'MSN-001', jenis: 'Genset 50kVA' },
-        { id: 'MSN-002', jenis: 'Genset 50kVA' },
-      ],
-      buktiSuratJalan:
-        'https://placehold.co/800x1200?text=Surat+Jalan+ORD-501',
-    },
-    {
-      id: 'ORD-505',
-      pelanggan: 'CV. Bangun Pagi',
-      tanggalKirim: '19 Okt 2025',
-      sopir: 'Budi Santoso',
-      status: 'Dikirim',
-      unit: [{ id: 'MSN-099', jenis: 'Genset 100kVA' }],
-      buktiSuratJalan:
-        'https://placehold.co/800x1200?text=Surat+Jalan+ORD-505',
-    },
-  ]);
+  const [deliveries, setDeliveries] = useState<OrderData[]>([]);
+
+  const fetchDeliveries = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/pengiriman');
+      const json = await res.json();
+      if (json.success) {
+        setDeliveries(json.data.map((d: any) => ({
+          id: d.id,
+          pelanggan: d.permintaan?.pelanggan || 'Tanpa Nama',
+          tanggalKirim: d.tanggalKirim,
+          sopir: d.sopir,
+          status: d.status,
+          unit: d.permintaan?.mesin?.map((m: any) => ({
+            id: m.idMesin,
+            jenis: m.mesin?.namaMesin || 'Mesin'
+          })) || [],
+          buktiSuratJalan: d.buktiSuratJalan
+        })));
+      }
+    } catch (error) {
+       notifications.show({ title: 'Error', message: 'Gagal memuat data pengiriman', color: 'red' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDeliveries();
+  }, []);
 
   const filteredDeliveries = useMemo(() => {
     return deliveries
@@ -133,26 +142,30 @@ export default function KonfirmasiPenerimaanInteraktif() {
     setIsSubmitting(true);
 
     try {
-      await new Promise((res) => setTimeout(res, 1500));
-
-      setDeliveries((prev) =>
-        prev.map((d) =>
-          d.id === selectedOrder.id ? { ...d, status: 'Disewa' } : d
-        )
-      );
-
-      notifications.show({
-        title: 'Status Berhasil Diperbarui',
-        message: `Unit pada order ${selectedOrder.id} kini berstatus Disewa.`,
-        color: 'green',
-        icon: <IconCheck size={18} />,
+      const res = await fetch(`http://localhost:4000/api/pengiriman/${selectedOrder.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Disewa' })
       });
 
-      handleCloseInspect();
-    } catch (error) {
+      const json = await res.json();
+
+      if (json.success) {
+        notifications.show({
+          title: 'Status Berhasil Diperbarui',
+          message: `Unit pada order ${selectedOrder.id} kini berstatus Disewa.`,
+          color: 'green',
+          icon: <IconCheck size={18} />,
+        });
+        await fetchDeliveries();
+        handleCloseInspect();
+      } else {
+        throw new Error(json.message);
+      }
+    } catch (error: any) {
       notifications.show({
         title: 'Gagal Memperbarui',
-        message: 'Terjadi kesalahan koneksi ke server.',
+        message: error.message || 'Terjadi kesalahan koneksi ke server.',
         color: 'red',
         icon: <IconX size={18} />,
       });
@@ -304,24 +317,14 @@ export default function KonfirmasiPenerimaanInteraktif() {
                     </Box>
                   </Group>
 
-                  {selectedOrder.status === 'Dikirim' && (
-                    <Button
-                      color="blue"
-                      radius="xl"
-                      disabled={!allMachinesChecked}
-                      onClick={openConfirm}
-                      leftSection={<IconCheck size={20} />}
-                    >
-                      Konfirmasi Penerimaan
-                    </Button>
-                  )}
+                  {/* Tombol aksi dipindah ke sticky bottom panel */}
                 </Group>
               </Container>
             </Paper>
 
             <ScrollArea flex={1} p="xl">
               <Container size="xl">
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl">
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" mb={100}>
                   <Stack gap="sm">
                     <Group justify="space-between">
                       <Text fw={700} size="xs" c="dimmed">
@@ -433,6 +436,30 @@ export default function KonfirmasiPenerimaanInteraktif() {
                 </SimpleGrid>
               </Container>
             </ScrollArea>
+
+            {/* STICKY BOTTOM PANEL */}
+            {selectedOrder.status === 'Dikirim' && (
+              <Box p="xl" bg="white" style={{ borderTop: '2px solid var(--mantine-color-gray-2)' }}>
+                <Container size="xl">
+                  <Group justify="space-between">
+                    <Box>
+                      <Text fw={800} size="lg">Konfirmasi Kedatangan Unit</Text>
+                      <Text size="sm" c="dimmed">Pastikan seluruh unit telah diperiksa fisik sesuai checklist.</Text>
+                    </Box>
+                    <Button
+                      color="blue"
+                      size="lg"
+                      radius="md"
+                      disabled={!allMachinesChecked}
+                      onClick={openConfirm}
+                      leftSection={<IconCheck size={20} />}
+                    >
+                      Konfirmasi & Ubah ke 'Disewa'
+                    </Button>
+                  </Group>
+                </Container>
+              </Box>
+            )}
           </Box>
         )}
       </Modal>
