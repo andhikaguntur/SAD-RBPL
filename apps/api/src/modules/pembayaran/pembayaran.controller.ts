@@ -55,4 +55,14 @@ export class PembayaranController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  async getByPelanggan(req: Request, res: Response) {
+    try {
+      const { name } = req.params;
+      const data = await this.repository.findByPelanggan(decodeURIComponent(name));
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }

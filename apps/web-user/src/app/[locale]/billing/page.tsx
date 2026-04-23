@@ -58,22 +58,21 @@ export default function BillingPage() {
   }, [isAuthenticated, router, locale]);
 
   const fetchInvoices = async () => {
+    if (!user?.name) return;
     try {
-      const res = await fetch('http://localhost:4000/api/pembayaran');
+      const encoded = encodeURIComponent(user.name);
+      const res = await fetch(`http://localhost:4000/api/pembayaran/by-pelanggan/${encoded}`);
       const json = await res.json();
       if (json.success) {
-        // Filter by user (via nested permintaan)
-        const filtered = json.data
-          .filter((p: any) => p.permintaan?.pelanggan === user?.name)
-          .map((p: any) => ({
-            id: p.id,
-            ref: `INV-${p.id.substring(0, 8).toUpperCase()}`,
-            date: p.tanggal,
-            total: p.total,
-            status: p.status,
-            bukti: p.bukti
-          }));
-        setInvoices(filtered);
+        const mapped = (json.data as any[]).map((p: any) => ({
+          id: p.id,
+          ref: `INV-${p.id.substring(0, 8).toUpperCase()}`,
+          date: p.tanggal,
+          total: p.total,
+          status: p.status,
+          bukti: p.bukti || '',
+        }));
+        setInvoices(mapped);
       }
     } catch (err) {
       showNotification({ title: 'Error', message: 'Gagal memuat invoice', color: 'red' });
@@ -93,31 +92,28 @@ export default function BillingPage() {
     setProgress(10);
 
     try {
-      // compress image (RNF-006)
       const compressed = await compressImageFile(file, 1280, 0.7);
       setProgress(50);
 
-      // convert to base64
       const b64 = await fileToBase64(compressed);
       setProgress(70);
 
-      // Save to backend
       const res = await fetch(`http://localhost:4000/api/pembayaran/${active.id}/proof`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bukti: b64 })
+        body: JSON.stringify({ bukti: b64 }),
       });
 
       const json = await res.json();
       if (json.success) {
         setProgress(100);
-        showNotification({ 
-          title: 'Berhasil', 
-          message: 'Bukti pembayaran berhasil diunggah', 
-          color: 'green', 
-          icon: <IconCheck size={16} /> 
+        showNotification({
+          title: 'Berhasil',
+          message: 'Bukti pembayaran berhasil diunggah. Admin akan memverifikasi segera.',
+          color: 'green',
+          icon: <IconCheck size={16} />,
         });
-        fetchInvoices();
+        await fetchInvoices();
         setOpened(false);
       } else {
         throw new Error(json.message);
@@ -125,7 +121,20 @@ export default function BillingPage() {
     } catch (err: any) {
       showNotification({ title: 'Gagal', message: err.message || 'Gagal mengunggah bukti', color: 'red' });
     } finally {
-      if (mountedRef.current) setUploading(false);
+      if (mountedRef.current) {
+        setUploading(false);
+        setProgress(0);
+      }
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Lunas': return 'green';
+      case 'Menunggu Validasi': return 'blue';
+      case 'Belum Dibayar': return 'orange';
+      case 'Ditolak': return 'red';
+      default: return 'gray';
     }
   };
 
@@ -140,29 +149,39 @@ export default function BillingPage() {
 
         <Stack gap="md">
           {invoices.length === 0 && !loading ? (
-            <Paper withBorder p="lg" radius="md" ta="center">
-              <Text c="dimmed">Tidak ada invoice ditemukan.</Text>
+            <Paper withBorder p="xl" radius="md" ta="center">
+              <IconReceipt size={40} color="gray" style={{ marginBottom: 8 }} />
+              <Text c="dimmed" fw={500}>Tidak ada invoice ditemukan.</Text>
+              <Text size="sm" c="dimmed" mt={4}>
+                Invoice akan muncul setelah Anda menyetujui penawaran harga dari Admin.
+              </Text>
             </Paper>
           ) : (
             invoices.map((inv) => (
               <Paper withBorder p="md" radius="md" key={inv.id}>
-                <Group justify="apart">
+                <Group justify="space-between">
                   <Group>
-                    <IconReceipt />
+                    <IconReceipt size={24} />
                     <div>
                       <Text fw={700}>{inv.ref}</Text>
                       <Text size="sm" c="dimmed">{inv.date}</Text>
                     </div>
                   </Group>
-
                   <Group>
                     <Badge variant="light" size="lg" color="blue">
-                      {`Rp ${inv.total.toLocaleString()}`}
+                      {`Rp ${inv.total.toLocaleString('id-ID')}`}
                     </Badge>
-                    <Button variant="subtle" onClick={() => openInvoice(inv)}>{t('view')}</Button>
-                    <Badge color={inv.status === 'Lunas' ? 'green' : 'orange'}>
+                    <Badge color={getStatusColor(inv.status)}>
                       {inv.status}
                     </Badge>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => openInvoice(inv)}
+                      disabled={inv.status === 'Lunas'}
+                    >
+                      {inv.status === 'Belum Dibayar' ? 'Upload Bukti' : 'Lihat Detail'}
+                    </Button>
                   </Group>
                 </Group>
               </Paper>
@@ -170,42 +189,89 @@ export default function BillingPage() {
           )}
         </Stack>
 
-        <Modal opened={opened} onClose={() => setOpened(false)} title={active?.ref || 'Invoice'} size="lg">
+        <Modal
+          opened={opened}
+          onClose={() => { setOpened(false); setProgress(0); }}
+          title={`Detail Invoice — ${active?.ref || ''}`}
+          size="lg"
+        >
           <Stack gap="md" pos="relative">
             <LoadingOverlay visible={uploading} />
-            <Group justify="apart">
-              <div>
-                <Text fw={700}>{active?.ref}</Text>
-                <Text size="sm" c="dimmed">{t('date')}: {active?.date}</Text>
-              </div>
-              <Badge size="xl">Rp {active?.total.toLocaleString()}</Badge>
+
+            <Paper withBorder p="md" radius="md" bg="gray.0">
+              <Group justify="space-between">
+                <div>
+                  <Text size="sm" c="dimmed">Nomor Invoice</Text>
+                  <Text fw={700} size="lg">{active?.ref}</Text>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <Text size="sm" c="dimmed">Tanggal</Text>
+                  <Text fw={600}>{active?.date}</Text>
+                </div>
+              </Group>
+            </Paper>
+
+            <Group justify="space-between" px="xs">
+              <Text fw={500}>Total Pembayaran</Text>
+              <Text fw={700} size="xl" c="blue">
+                Rp {active?.total.toLocaleString('id-ID')}
+              </Text>
             </Group>
 
-            <Text c="dimmed">{t('status')}: {active?.status}</Text>
+            <Group justify="space-between" px="xs">
+              <Text fw={500}>Status</Text>
+              <Badge size="lg" color={getStatusColor(active?.status || '')}>
+                {active?.status}
+              </Badge>
+            </Group>
 
             {active?.bukti ? (
-              <Box p="md" bg="gray.0" style={{ borderRadius: 8 }}>
-                <Text size="sm" fw={500} mb="xs">Bukti Terunggah:</Text>
-                <img src={active.bukti} alt="Bukti Pembayaran" style={{ maxWidth: '100%', borderRadius: 8 }} />
+              <Box p="md" style={{ border: '1px solid #dee2e6', borderRadius: 8 }}>
+                <Text size="sm" fw={600} mb="xs">Bukti Pembayaran Terunggah:</Text>
+                <img
+                  src={active.bukti}
+                  alt="Bukti Pembayaran"
+                  style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+                />
+                <Text size="xs" c="dimmed" mt="xs">
+                  {active.status === 'Menunggu Validasi'
+                    ? '⏳ Sedang diverifikasi oleh Admin.'
+                    : active.status === 'Lunas'
+                    ? '✅ Pembayaran telah diverifikasi.'
+                    : ''}
+                </Text>
               </Box>
             ) : (
-              <div>
-                <Text size="sm" c="dimmed" mb="xs">{t('uploadProof')}</Text>
-                <Group>
+              <Box p="md" style={{ border: '2px dashed #ced4da', borderRadius: 8, textAlign: 'center' }}>
+                <IconUpload size={32} color="gray" style={{ marginBottom: 8 }} />
+                <Text fw={600} mb={4}>Upload Bukti Pembayaran</Text>
+                <Text size="sm" c="dimmed" mb="md">
+                  Silakan transfer ke rekening tujuan, lalu upload foto/screenshot bukti transfer.
+                </Text>
+                <Paper withBorder p="sm" radius="md" mb="md" bg="blue.0">
+                  <Text size="sm" fw={600} c="blue.8">Info Rekening Tujuan:</Text>
+                  <Text size="sm">BCA — 1234-5678-90 a/n PT. RBPL Machinery</Text>
+                </Paper>
+                <Group justify="center">
                   <FileButton onChange={handleUpload} accept="image/*,application/pdf">
                     {(props) => (
-                      <Button leftSection={<IconUpload size={16} />} {...props} disabled={uploading}>
-                        {uploading ? t('uploading') : t('selectFile')}
+                      <Button
+                        leftSection={<IconUpload size={16} />}
+                        {...props}
+                        disabled={uploading}
+                        size="md"
+                      >
+                        {uploading ? 'Mengunggah...' : 'Pilih File Bukti'}
                       </Button>
                     )}
                   </FileButton>
-                  {uploading && <Progress value={progress} style={{ width: 200 }} />}
                 </Group>
-              </div>
+                {uploading && <Progress value={progress} mt="md" animated />}
+              </Box>
             )}
 
-            <Text size="sm" c="dimmed">
-              Catatan: Silakan unggah bukti transfer ATM/Mobile Banking Anda di sini.
+            <Text size="xs" c="dimmed">
+              Catatan: Setelah bukti pembayaran diunggah, Admin akan memverifikasi dalam 1×24 jam.
             </Text>
           </Stack>
         </Modal>

@@ -174,6 +174,16 @@ exports.Prisma.AuditLogScalarFieldEnum = {
   timestamp: 'timestamp'
 };
 
+exports.Prisma.UserScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  password: 'password',
+  role: 'role',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -196,7 +206,8 @@ exports.Prisma.ModelName = {
   PermintaanMesin: 'PermintaanMesin',
   Pembayaran: 'Pembayaran',
   Pengiriman: 'Pengiriman',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  User: 'User'
 };
 
 /**

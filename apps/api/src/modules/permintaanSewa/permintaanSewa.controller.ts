@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PermintaanRepository } from "./permintaanSewa.repository";
 import { PermintaanService } from "./permintaanSewa.service";
+import { PembayaranRepository } from "../pembayaran/pembayaran.repository";
 
 export class PermintaanController {
     private repository = new PermintaanRepository();
@@ -36,12 +37,37 @@ export class PermintaanController {
         }
     }
 
+    private pembayaranRepo = new PembayaranRepository();
+
     async update(req: Request, res: Response) {
         try {
             const { id } = req.params;
             const data = req.body;
             data.idPermintaan = id;
             const saved = await this.repository.save(data);
+
+            // Auto-create invoice when status changes to "Menunggu Pembayaran"
+            if (data.status === 'Menunggu Pembayaran') {
+                const existing = await this.pembayaranRepo.findByPermintaanId(id);
+                if (existing.length === 0) {
+                    // Calculate total from mesin items
+                    const total = (saved.mesin || []).reduce(
+                        (acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty,
+                        0
+                    );
+                    const tanggal = new Date().toLocaleDateString('id-ID', {
+                        day: '2-digit', month: 'long', year: 'numeric'
+                    });
+                    await this.pembayaranRepo.create({
+                        idPermintaan: id,
+                        total,
+                        tanggal,
+                        status: 'Belum Dibayar',
+                        bukti: ''
+                    });
+                }
+            }
+
             res.json({ success: true, data: saved });
         } catch (error: any) {
             res.status(500).json({ success: false, message: error.message });
