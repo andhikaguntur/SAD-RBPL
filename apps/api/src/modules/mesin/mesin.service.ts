@@ -1,5 +1,5 @@
-import { Mesin } from "@domain/mesin/Mesin"
-import { StatusMesin } from "@domain/mesin/mesin.types";
+import { Mesin } from "@domain/Mesin/Mesin"
+import { StatusMesin } from "@domain/Mesin/mesin.types";
 import { MesinRepository } from "./mesin.repository";
 
 export class MesinService {

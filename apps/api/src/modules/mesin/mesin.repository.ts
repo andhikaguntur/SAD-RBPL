@@ -1,4 +1,4 @@
-import { mesinType, StatusMesin } from "@domain/mesin/mesin.types";
+import { mesinType, StatusMesin } from "@domain/Mesin/mesin.types";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
@@ -74,7 +74,7 @@ export class MesinRepository {
 
   async findAll(): Promise<mesinType[]> {
     const data = await prisma.mesin.findMany();
-    return data.map(m => ({
+    return data.map((m: any) => ({
       idMesin: m.idMesin,
       namaMesin: m.namaMesin,
       kapasitas: m.kapasitas,
