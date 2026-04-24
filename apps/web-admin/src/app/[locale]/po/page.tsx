@@ -178,7 +178,7 @@ export default function ArsipPurchaseOrderPro() {
                   <Table.Td fw={600}>{po.client}</Table.Td>
                   <Table.Td fw={800}>Rp {po.total.toLocaleString('id-ID')}</Table.Td>
                   <Table.Td>
-                    <Badge color={po.status === 'Selesai' ? 'green' : po.status === 'Dibatalkan' ? 'red' : 'blue'} variant="light" size="sm">
+                    <Badge color={po.status === 'Selesai' ? 'gray' : po.status === 'Dibatalkan' ? 'red' : 'blue'} variant="light" size="sm">
                       {po.status}
                     </Badge>
                   </Table.Td>

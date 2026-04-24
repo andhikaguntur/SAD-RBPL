@@ -30,6 +30,8 @@ export default function ProfilePage() {
   const t = useTranslations('Profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const form = useForm<{
     name: string;
@@ -55,8 +57,22 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isAuthenticated) {
       router.push(`/${locale}/login`);
+    } else {
+      fetchStats();
     }
   }, [isAuthenticated, router, locale]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`http://localhost:4000/api/dashboard/user/${user?.name || 'User'}`);
+      const json = await res.json();
+      if (json.success) setStats(json.data);
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   if (!isAuthenticated) return null;
 
@@ -216,7 +232,7 @@ export default function ProfilePage() {
                 {t('totalRentals')}
               </Text>
               <Text fw={700} size="lg">
-                12
+                {(stats?.activeRentals || 0) + (stats?.pendingQuotes || 0)}
               </Text>
             </div>
             <div>
@@ -224,7 +240,7 @@ export default function ProfilePage() {
                 {t('activeRentals')}
               </Text>
               <Text fw={700} size="lg">
-                2
+                {stats?.activeRentals || 0}
               </Text>
             </div>
             <div>
@@ -232,7 +248,7 @@ export default function ProfilePage() {
                 {t('totalSpending')}
               </Text>
               <Text fw={700} size="lg">
-                Rp 15.5M
+                Rp {(stats?.totalSpent || 0).toLocaleString('id-ID')}
               </Text>
             </div>
             <div>
@@ -240,7 +256,7 @@ export default function ProfilePage() {
                 {t('memberSince')}
               </Text>
               <Text fw={700} size="lg">
-                Mar 2026
+                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : 'Mar 2026'}
               </Text>
             </div>
           </Group>

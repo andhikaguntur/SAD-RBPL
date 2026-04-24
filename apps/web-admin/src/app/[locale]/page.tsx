@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
   Group, Text, Paper, Title, Stack, Button, Box, Badge, 
   SimpleGrid, Avatar, ScrollArea, Table, ThemeIcon, LoadingOverlay, Center,
-  Container, Divider
+  Container, Divider, Modal
 } from '@mantine/core';
 import { 
   IconCash, IconEngine, IconUsers, IconAlertCircle,
@@ -19,6 +19,8 @@ export default function AdministrativeDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTrx, setSelectedTrx] = useState<any>(null);
+  const [modalOpened, setModalOpened] = useState(false);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -108,8 +110,73 @@ export default function AdministrativeDashboard() {
           />
         </SimpleGrid>
 
-        {/* --- 3. ANALYTICS SECTION --- */}
-        <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+      {/* --- DETAIL MODAL --- */}
+      <Modal
+        opened={modalOpened}
+        onClose={() => setModalOpened(false)}
+        title={<Text fw={900} size="lg">Order Details: {selectedTrx?.id}</Text>}
+        size="lg"
+        radius="md"
+      >
+        {selectedTrx && (
+          <Stack gap="md">
+            <Paper withBorder p="md" bg="gray.0">
+              <SimpleGrid cols={2}>
+                <Box>
+                  <Text size="xs" fw={700} c="dimmed">CUSTOMER</Text>
+                  <Text fw={700}>{selectedTrx.customer}</Text>
+                </Box>
+                <Box>
+                  <Text size="xs" fw={700} c="dimmed">STATUS</Text>
+                  <Badge color={getStatusColor(selectedTrx.status)} variant="filled">{selectedTrx.status}</Badge>
+                </Box>
+                <Box>
+                  <Text size="xs" fw={700} c="dimmed">LOKASI</Text>
+                  <Text size="sm">{selectedTrx.lokasi}</Text>
+                </Box>
+                <Box>
+                  <Text size="xs" fw={700} c="dimmed">DURASI</Text>
+                  <Text size="sm">{selectedTrx.durasi} Hari</Text>
+                </Box>
+              </SimpleGrid>
+            </Paper>
+
+            <Box>
+              <Text fw={800} size="sm" mb="xs">LIST UNIT</Text>
+              <Stack gap="xs">
+                {selectedTrx.mesin.map((m: any, i: number) => (
+                  <Paper key={i} withBorder p="xs" radius="xs">
+                    <Group justify="space-between">
+                      <Box>
+                        <Text size="sm" fw={700}>{m.nama}</Text>
+                        <Text size="xs" c="dimmed">{m.qty} Unit x Rp {(m.harga - m.diskon).toLocaleString()}</Text>
+                      </Box>
+                      <Text fw={700} size="sm">Rp {( (m.harga - m.diskon) * m.qty * selectedTrx.durasi ).toLocaleString()}</Text>
+                    </Group>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+
+            <Divider />
+            
+            <Group justify="space-between">
+               <Box>
+                  <Text size="xs" fw={700} c="dimmed">TOTAL INVOICE</Text>
+                  <Text size="xl" fw={900} c="blue.9">Rp {(selectedTrx.amount * selectedTrx.durasi).toLocaleString()}</Text>
+               </Box>
+               {selectedTrx.status === 'Menunggu Validasi' && (
+                 <Button color="blue" onClick={() => window.location.href='/permintaan'}>Process Order</Button>
+               )}
+               {selectedTrx.status === 'Lunas' && (
+                 <Button color="orange" onClick={() => window.location.href='/po'}>Prepare Shipment</Button>
+               )}
+            </Group>
+          </Stack>
+        )}
+      </Modal>
+
+      <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
           <Paper withBorder p="xl" radius="md" shadow="sm" style={{ gridColumn: 'span 2' }}>
             <Group justify="space-between" mb="xl">
               <Box>
@@ -193,7 +260,11 @@ export default function AdministrativeDashboard() {
                         <Text size="sm" fw={600}>{trx.customer}</Text>
                       </Group>
                     </Table.Td>
-                    <Table.Td><Text size="xs" fw={700} c="dimmed">{trx.id}</Text></Table.Td>
+                    <Table.Td>
+                      <Text size="xs" fw={700} c="dimmed">
+                        {trx.id.includes('-') ? `REQ-${trx.id.substring(0, 8).toUpperCase()}` : trx.id}
+                      </Text>
+                    </Table.Td>
                     <Table.Td><Text size="sm" fw={700}>Rp {(trx.amount || 0).toLocaleString()}</Text></Table.Td>
                     <Table.Td>
                       <Badge variant="light" color={getStatusColor(trx.status || '')} size="sm">
@@ -201,7 +272,29 @@ export default function AdministrativeDashboard() {
                       </Badge>
                     </Table.Td>
                     <Table.Td ta="right">
-                      <Button variant="subtle" size="xs" color="blue">Details</Button>
+                      <Group gap="xs" justify="flex-end">
+                        {trx.status === 'Menunggu Validasi' && (
+                          <Button variant="light" size="xs" color="yellow" onClick={() => window.location.href='/permintaan'}>
+                            Validate
+                          </Button>
+                        )}
+                        {trx.status === 'Lunas' && (
+                          <Button variant="light" size="xs" color="green" onClick={() => window.location.href='/po'}>
+                            Ship
+                          </Button>
+                        )}
+                        <Button 
+                          variant="subtle" 
+                          size="xs" 
+                          color="blue" 
+                          onClick={() => {
+                            setSelectedTrx(trx);
+                            setModalOpened(true);
+                          }}
+                        >
+                          Details
+                        </Button>
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -253,12 +346,24 @@ function StatusProgressBar({ label, val, max, color }: any) {
 }
 
 function getStatusColor(status: string) {
-  switch(status.toLowerCase()) {
-    case 'lunas':
-    case 'valid': return 'green';
-    case 'pending':
-    case 'menunggu': return 'orange';
-    case 'proses': return 'blue';
-    default: return 'gray';
+  switch (status) {
+    case 'Menunggu':
+    case 'Menunggu Validasi':
+      return 'yellow';
+    case 'Divalidasi':
+    case 'Menunggu Pembayaran':
+      return 'cyan';
+    case 'Lunas':
+    case 'Dikirim':
+      return 'blue';
+    case 'Diterima':
+    case 'Disewa':
+      return 'green';
+    case 'Selesai':
+      return 'gray';
+    case 'Ditolak':
+      return 'red';
+    default:
+      return 'blue';
   }
 }

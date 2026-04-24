@@ -1,5 +1,6 @@
 import { PembayaranType } from "@domain/Pembayaran/Pembayaran.types";
-import { PrismaClient } from "../../generated/prisma";
+import { PrismaClient } from "@prisma/client";
+import { AuditLogRepository } from "../auditLog/auditLog.repository";
 
 const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL
@@ -14,6 +15,8 @@ export type CreatePembayaranInput = {
 };
 
 export class PembayaranRepository {
+  private auditLog = new AuditLogRepository();
+
   async create(input: CreatePembayaranInput): Promise<PembayaranType> {
     const d = await prisma.pembayaran.create({
       data: {
@@ -85,20 +88,29 @@ export class PembayaranRepository {
   }
 
   async updateProof(id: string, bukti: string): Promise<PembayaranType> {
-    const d = await prisma.pembayaran.update({
-      where: { id },
-      data: { bukti, status: 'Menunggu Validasi' },
-      include: { permintaan: true }
-    });
-    return {
-      id: d.id,
-      idPermintaan: d.idPermintaan,
-      total: d.total,
-      tanggal: d.tanggal,
-      status: d.status,
-      bukti: d.bukti,
-      permintaan: d.permintaan
-    };
+    return await prisma.$transaction(async (tx) => {
+      const pembayaran = await tx.pembayaran.update({
+        where: { id },
+        data: { bukti, status: 'Menunggu Validasi' },
+        include: { permintaan: true }
+      });
+
+      // Update PermintaanSewa status as well so Admin can see it in "Permintaan Baru"
+      await tx.permintaanSewa.update({
+        where: { idPermintaan: pembayaran.idPermintaan },
+        data: { status: 'Menunggu Validasi' }
+      });
+
+      // Audit Log
+      await this.auditLog.create({
+        entitasTarget: 'Pembayaran',
+        idTarget: pembayaran.id,
+        aksi: 'UPDATE_PROOF',
+        keterangan: `Bukti pembayaran diunggah untuk invoice ${pembayaran.id} (Order: ${pembayaran.idPermintaan})`
+      });
+
+      return pembayaran;
+    }) as any;
   }
 
   async updateStatus(id: string, status: string): Promise<PembayaranType> {
@@ -135,6 +147,23 @@ export class PembayaranRepository {
     }));
   }
 
+  async findByUserId(userId: string): Promise<PembayaranType[]> {
+    const data = await prisma.pembayaran.findMany({
+      where: { permintaan: { userId } },
+      include: { permintaan: true },
+      orderBy: { tanggal: 'desc' }
+    });
+    return data.map(d => ({
+      id: d.id,
+      idPermintaan: d.idPermintaan,
+      total: d.total,
+      tanggal: d.tanggal,
+      status: d.status,
+      bukti: d.bukti,
+      permintaan: d.permintaan
+    }));
+  }
+
   async updateStatusWithSync(id: string, status: 'Lunas' | 'Ditolak') {
   return await prisma.$transaction(async (tx) => {
     
@@ -149,6 +178,14 @@ export class PembayaranRepository {
         data: { status: 'Lunas' }
       });
     }
+
+    // Audit Log
+    await this.auditLog.create({
+      entitasTarget: 'Pembayaran',
+      idTarget: pembayaran.id,
+      aksi: 'UPDATE_STATUS',
+      keterangan: `Pembayaran ${pembayaran.id} dikonfirmasi: ${status}`
+    });
 
     return pembayaran;
   });

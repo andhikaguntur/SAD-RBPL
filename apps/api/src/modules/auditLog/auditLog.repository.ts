@@ -1,41 +1,37 @@
-import { AuditLogType } from "@domain/AuditLog/AuditLog.types";
-import { PrismaClient } from "../../generated/prisma";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL
 });
 
+export interface AuditLogType {
+  idLog: string;
+  userId?: string | null;
+  entitasTarget: string;
+  idTarget: string;
+  aksi: string;
+  keterangan: string;
+  timestamp: Date;
+  user?: { name: string } | null;
+}
+
 export class AuditLogRepository {
   async findAll(): Promise<AuditLogType[]> {
-    const data = await prisma.auditLog.findMany({
-      orderBy: { timestamp: "desc" }
-    });
-    return data.map(d => ({
-      idLog: d.idLog,
-      entitasTarget: d.entitasTarget,
-      idTarget: d.idTarget,
-      aksi: d.aksi,
-      keterangan: d.keterangan,
-      timestamp: d.timestamp
-    }));
+    return await prisma.auditLog.findMany({
+      include: { user: { select: { name: true } } },
+      orderBy: { timestamp: 'desc' }
+    }) as any;
   }
 
-  async create(data: Omit<AuditLogType, "idLog" | "timestamp">): Promise<AuditLogType> {
-    const d = await prisma.auditLog.create({
+  async create(input: { userId?: string; entitasTarget: string; idTarget: string; aksi: string; keterangan: string }): Promise<AuditLogType> {
+    return await prisma.auditLog.create({
       data: {
-        entitasTarget: data.entitasTarget,
-        idTarget: data.idTarget,
-        aksi: data.aksi,
-        keterangan: data.keterangan
+        userId: input.userId || null,
+        entitasTarget: input.entitasTarget,
+        idTarget: input.idTarget,
+        aksi: input.aksi,
+        keterangan: input.keterangan
       }
-    });
-    return {
-      idLog: d.idLog,
-      entitasTarget: d.entitasTarget,
-      idTarget: d.idTarget,
-      aksi: d.aksi,
-      keterangan: d.keterangan,
-      timestamp: d.timestamp
-    };
+    }) as any;
   }
 }

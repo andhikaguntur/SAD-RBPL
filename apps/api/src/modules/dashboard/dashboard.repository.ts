@@ -1,4 +1,4 @@
-import { PrismaClient } from "../../generated/prisma";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL
@@ -27,9 +27,9 @@ export class DashboardRepository {
       prisma.permintaanSewa.count({
         where: { status: { in: ['Menunggu', 'Menunggu Validasi'] } }
       }),
-      // Ready to ship (status Dikirim in Pengiriman)
-      prisma.pengiriman.count({
-        where: { status: 'Dikirim' }
+      // Ready to ship (status Lunas but not yet processed for dispatch)
+      prisma.permintaanSewa.count({
+        where: { status: 'Lunas' }
       }),
       // Recent transactions
       prisma.permintaanSewa.findMany({
@@ -65,16 +65,24 @@ export class DashboardRepository {
       fleetUtilization,
       recentTransactions: recentTransactions.map(t => ({
         id: t.idPermintaan,
-        pelanggan: t.pelanggan || 'User',
-        nominal: t.mesin.reduce((acc, m) => acc + (m.harga - m.diskon) * m.qty, 0),
+        customer: t.pelanggan || 'User',
+        amount: t.mesin.reduce((acc, m) => acc + (m.harga - m.diskon) * m.qty, 0),
         status: t.status,
+        lokasi: t.lokasi,
+        durasi: t.durasi,
+        mesin: t.mesin.map(m => ({
+          nama: m.mesin?.namaMesin || 'Mesin',
+          qty: m.qty,
+          harga: m.harga,
+          diskon: m.diskon
+        })),
         pembayaran: t.pembayaran[0] || null,
         pengiriman: t.pengiriman[0] || null
       }))
     };
   }
 
-  async getUserStats(pelanggan: string) {
+  async getUserStats(userId: string) {
     const [
       activeRentals,
       pendingQuotes,
@@ -82,26 +90,26 @@ export class DashboardRepository {
       totalSpent,
       recentActivities
     ] = await Promise.all([
-      // Active rentals (status 'Disewa' or 'Diterima')
+      // Active rentals (status 'Dikirim', 'Disewa', 'Diterima')
       prisma.permintaanSewa.count({
-        where: { pelanggan, status: { in: ['Disewa', 'Diterima'] } }
+        where: { userId, status: { in: ['Dikirim', 'Disewa', 'Diterima'] } }
       }),
-      // Pending quotes (status 'Menunggu' or 'Menunggu Validasi')
+      // Pending quotes (status 'Menunggu', 'Menunggu Validasi', 'Divalidasi', 'Menunggu Pembayaran')
       prisma.permintaanSewa.count({
-        where: { pelanggan, status: { in: ['Menunggu', 'Menunggu Validasi'] } }
+        where: { userId, status: { in: ['Menunggu', 'Menunggu Validasi', 'Divalidasi', 'Menunggu Pembayaran'] } }
       }),
       // Unpaid invoices (where payment status exists and is not 'Lunas')
       prisma.pembayaran.count({
-        where: { permintaan: { pelanggan }, NOT: { status: 'Lunas' } }
+        where: { permintaan: { userId }, NOT: { status: 'Lunas' } }
       }),
       // Total spent (sum of all 'Lunas' payments)
       prisma.pembayaran.aggregate({
-        where: { permintaan: { pelanggan }, status: 'Lunas' },
+        where: { permintaan: { userId }, status: 'Lunas' },
         _sum: { total: true }
       }),
       // Recent activities (last 5 requests)
       prisma.permintaanSewa.findMany({
-        where: { pelanggan },
+        where: { userId },
         take: 5,
         orderBy: { idPermintaan: 'desc' },
         include: { pengiriman: true, pembayaran: true }
@@ -112,7 +120,7 @@ export class DashboardRepository {
       activeRentals,
       pendingQuotes,
       unpaidInvoices,
-      totalSpent: totalSpent._sum.total || 1, // ensure at least 1 for display logic if needed
+      totalSpent: totalSpent._sum.total || 0,
       recentActivities: recentActivities.map(a => ({
         id: a.idPermintaan,
         status: a.status,

@@ -60,8 +60,7 @@ export default function BillingPage() {
   const fetchInvoices = async () => {
     if (!user?.name) return;
     try {
-      const encoded = encodeURIComponent(user.name);
-      const res = await fetch(`http://localhost:4000/api/pembayaran/by-pelanggan/${encoded}`);
+      const res = await fetch(`http://localhost:4000/api/pembayaran/by-user/${user?.id}`);
       const json = await res.json();
       if (json.success) {
         const mapped = (json.data as any[]).map((p: any) => ({
@@ -133,6 +132,7 @@ export default function BillingPage() {
       case 'Lunas': return 'green';
       case 'Menunggu Validasi': return 'blue';
       case 'Belum Dibayar': return 'orange';
+      case 'Menunggu Pembayaran': return 'orange';
       case 'Ditolak': return 'red';
       default: return 'gray';
     }
@@ -237,8 +237,8 @@ export default function BillingPage() {
                   {active.status === 'Menunggu Validasi'
                     ? '⏳ Sedang diverifikasi oleh Admin.'
                     : active.status === 'Lunas'
-                    ? '✅ Pembayaran telah diverifikasi.'
-                    : ''}
+                      ? '✅ Pembayaran telah diverifikasi.'
+                      : ''}
                 </Text>
               </Box>
             ) : (

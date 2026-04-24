@@ -8,4 +8,6 @@ permintaanRouter.get("/", controller.getAll.bind(controller) as RequestHandler);
 permintaanRouter.get("/:id", controller.getById.bind(controller) as RequestHandler);
 permintaanRouter.post("/", controller.create.bind(controller) as RequestHandler);
 permintaanRouter.post("/:id/penawaran", controller.generatePenawaran.bind(controller) as RequestHandler);
+permintaanRouter.get("/by-pelanggan/:name", controller.getByPelanggan.bind(controller) as RequestHandler);
+permintaanRouter.get("/by-user/:userId", controller.getByUserId.bind(controller) as RequestHandler);
 permintaanRouter.patch("/:id", controller.update.bind(controller) as RequestHandler);

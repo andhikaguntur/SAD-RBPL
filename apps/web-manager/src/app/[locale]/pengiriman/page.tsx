@@ -184,7 +184,9 @@ export default function LogisticsCommandCenterV2() {
               }}
             >
               <Group justify="space-between" mb={4}>
-                <Text size="xs" fw={800} c={activeId === item.id ? 'blue.9' : 'gray.6'}>{item.id}</Text>
+                <Text size="xs" fw={800} c={activeId === item.id ? 'blue.9' : 'gray.6'}>
+                  SHIP-{item.id.substring(0, 8).toUpperCase()}
+                </Text>
                 <Badge size="xs" color={item.status === 'Priority' ? 'red' : 'blue'}>{item.time}</Badge>
               </Group>
               <Text size="sm" fw={700}>{item.client}</Text>
@@ -288,7 +290,7 @@ export default function LogisticsCommandCenterV2() {
                     <Box p={40} style={{ border: '2px solid black' }}>
                         <Group justify="space-between" mb="xl">
                             <Title order={3}>SURAT JALAN - CV SUMBER ANUGERAH DIESEL</Title>
-                            <Text fw={800}>{selectedData.id}</Text>
+                            <Text fw={800}>SHIP-{selectedData.id.substring(0, 8).toUpperCase()}</Text>
                         </Group>
                         <Divider my="md" color="black" />
                         <SimpleGrid cols={2} mb="xl">

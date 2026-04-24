@@ -13,10 +13,25 @@ export class PengirimanController {
     }
   }
 
+  async create(req: Request, res: Response) {
+    try {
+      const { idPermintaan, sopir, status, tanggalKirim } = req.body;
+      const data = await this.repository.create({
+        idPermintaan,
+        sopir,
+        status,
+        tanggalKirim: tanggalKirim || new Date().toISOString()
+      });
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   async getById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const data = await this.repository.findById(id);
+      const data = await this.repository.findById(id as string);
       if (!data) return res.status(404).json({ success: false, message: "Pengiriman tidak ditemukan" });
       res.json({ success: true, data });
     } catch (error: any) {
@@ -28,7 +43,7 @@ export class PengirimanController {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const data = await this.repository.updateStatus(id, status);
+      const data = await this.repository.updateStatus(id as string, status);
       res.json({ success: true, data });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -52,6 +67,26 @@ export class PengirimanController {
         detailItems: []
       }));
       res.json({ success: true, data: tracks });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async getByPelanggan(req: Request, res: Response) {
+    try {
+      const { name } = req.params;
+      const data = await this.repository.findByPelanggan(decodeURIComponent(name as string));
+      res.json({ success: true, data });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async getByUserId(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const data = await this.repository.findByUserId(userId as string);
+      res.json({ success: true, data });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

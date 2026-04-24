@@ -115,7 +115,13 @@ export default function MinimalistExecutiveDashboard() {
                   status={t.status} 
                   msg={`${t.id}: ${t.pelanggan}`} 
                   time={`Rp ${t.nominal.toLocaleString('id-ID')}`} 
-                  dotColor={t.status === 'Lunas' ? 'green' : 'blue'} 
+                  dotColor={
+                    t.status === 'Lunas' ? 'green' : 
+                    t.status === 'Ditolak' ? 'red' :
+                    t.status === 'Menunggu Validasi' ? 'blue' :
+                    t.status === 'Menunggu Pembayaran' ? 'cyan' :
+                    'orange'
+                  } 
                 />
               ))}
               {(!stats?.recentTransactions || stats.recentTransactions.length === 0) && (

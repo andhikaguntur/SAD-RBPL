@@ -48,7 +48,7 @@ export default function StaffActivityLog() {
           const mapped = result.data.map((l: any) => ({
             id: l.idLog,
             timestamp: new Date(l.timestamp).toLocaleString('id-ID'),
-            admin: 'User Admin', 
+            admin: l.user?.name || 'Sistem', 
             action: l.aksi,
             target: l.idTarget,
             type: l.entitasTarget,

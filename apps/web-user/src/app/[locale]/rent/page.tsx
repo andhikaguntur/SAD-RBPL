@@ -19,8 +19,12 @@ import {
   Box,
   Badge,
   Notification,
-  LoadingOverlay
+  LoadingOverlay,
+  NumberInput
 } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
+import '@mantine/dates/styles.css';
 import { useForm } from '@mantine/form';
 import { IconCheck } from '@tabler/icons-react';
 import { showNotification } from '@mantine/notifications';
@@ -49,8 +53,8 @@ export default function RentPage() {
 
   const scheduleForm = useForm({
     initialValues: {
-      startDate: '',
-      endDate: '',
+      startDate: null as Date | null,
+      endDate: null as Date | null,
     },
     validate: {
       startDate: (v) => (v ? null : t('startDateRequired')),
@@ -104,7 +108,14 @@ export default function RentPage() {
 
   const summary = () => {
     const machine = machines.find((m) => m.idMesin === selectedMachine);
-    const days = 1; // simple mock calc
+    
+    let days = 1;
+    if (scheduleForm.values.startDate && scheduleForm.values.endDate) {
+      const start = dayjs(scheduleForm.values.startDate);
+      const end = dayjs(scheduleForm.values.endDate);
+      days = Math.max(1, end.diff(start, 'day') + 1);
+    }
+    
     const total = machine ? (machine.pricePerDay || 0) * days : 0;
     return { machine, days, total };
   };
@@ -119,6 +130,7 @@ export default function RentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idPermintaan: `REQ-${Date.now()}`,
+          userId: user?.id,
           pelanggan: user?.name || 'User',
           durasi: summary().days,
           lokasi: `${locationForm.values.address}, ${locationForm.values.city}`,
@@ -203,8 +215,18 @@ export default function RentPage() {
 
         <Stepper.Step label={t('step2Label')} description={t('step2Desc')}>
           <Stack>
-            <TextInput label={t('startDateLabel')} placeholder="YYYY-MM-DD" {...scheduleForm.getInputProps('startDate')} />
-            <TextInput label={t('endDateLabel')} placeholder="YYYY-MM-DD" {...scheduleForm.getInputProps('endDate')} />
+            <DatePickerInput 
+              label={t('startDateLabel')} 
+              placeholder={t('startDateLabel')} 
+              {...scheduleForm.getInputProps('startDate')} 
+              minDate={new Date()}
+            />
+            <DatePickerInput 
+              label={t('endDateLabel')} 
+              placeholder={t('endDateLabel')} 
+              {...scheduleForm.getInputProps('endDate')} 
+              minDate={scheduleForm.values.startDate || new Date()}
+            />
 
             <Group mt="md">
               <Button variant="default" onClick={handlePrev}>

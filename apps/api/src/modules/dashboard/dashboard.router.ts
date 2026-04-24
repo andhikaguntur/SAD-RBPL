@@ -7,5 +7,5 @@ const controller = new DashboardController();
 const seedController = new SeedController();
 
 dashboardRouter.get("/stats", controller.getStats.bind(controller) as RequestHandler);
-dashboardRouter.get("/user/:pelanggan", controller.getUserStats.bind(controller) as RequestHandler);
+dashboardRouter.get("/user/:id", controller.getUserStats.bind(controller) as RequestHandler);
 dashboardRouter.post("/seed", seedController.run.bind(seedController) as RequestHandler);

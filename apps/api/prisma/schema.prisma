@@ -5,7 +5,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -27,11 +26,13 @@ model Mesin {
 model PermintaanSewa {
   idPermintaan  String            @id @default(uuid())
   pelanggan     String            @default("")
+  userId        String?
   lokasi        String
   durasi        Int               @default(1)
   status        String
   tanggalFormat String            @default("")
   
+  user          User?             @relation(fields: [userId], references: [id])
   mesin         PermintaanMesin[]
   pembayaran    Pembayaran[]
   pengiriman    Pengiriman[]
@@ -74,11 +75,14 @@ model Pengiriman {
 
 model AuditLog {
   idLog          String   @id @default(uuid())
+  userId         String?
   entitasTarget  String
   idTarget       String
   aksi           String
   keterangan     String
   timestamp      DateTime @default(now())
+
+  user           User?    @relation(fields: [userId], references: [id])
 }
 
 model User {
@@ -89,4 +93,7 @@ model User {
   password  String
   role      String   @default("user")
   createdAt DateTime @default(now())
+
+  permintaan PermintaanSewa[]
+  logs       AuditLog[]
 }

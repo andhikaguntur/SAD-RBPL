@@ -69,8 +69,8 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       const [statsRes, deliveriesRes] = await Promise.all([
-        fetch(`http://localhost:4000/api/dashboard/user/${user?.name || 'User'}`),
-        fetch(`http://localhost:4000/api/pengiriman`),
+        fetch(`http://localhost:4000/api/dashboard/user/${user?.id || 'User'}`),
+        fetch(`http://localhost:4000/api/pengiriman/by-user/${user?.id || ''}`),
       ]);
       const statsJson = await statsRes.json();
       const deliveriesJson = await deliveriesRes.json();
@@ -153,7 +153,7 @@ export default function Dashboard() {
               <ThemeIcon size="lg" color="green" variant="light"><IconCircleCheck size={20} /></ThemeIcon>
             </Group>
             <Text fw={700} size="xl">
-              Rp {((stats?.totalSpent || 0) / 1000000).toFixed(1)}M
+              Rp {(stats?.totalSpent || 0).toLocaleString('id-ID')}
             </Text>
           </Card>
         </SimpleGrid>
@@ -230,11 +230,12 @@ export default function Dashboard() {
                     </div>
                     <Badge
                       color={
-                        rental.status === 'Disewa' || rental.status === 'Diterima'
-                          ? 'green'
-                          : rental.status === 'Menunggu'
-                            ? 'yellow'
-                            : 'gray'
+                        ['Disewa', 'Diterima'].includes(rental.status) ? 'green' :
+                          ['Dikirim', 'Lunas'].includes(rental.status) ? 'blue' :
+                            ['Menunggu', 'Menunggu Validasi'].includes(rental.status) ? 'yellow' :
+                              ['Menunggu Pembayaran', 'Divalidasi'].includes(rental.status) ? 'cyan' :
+                                rental.status === 'Ditolak' ? 'red' :
+                                  'gray'
                       }
                       variant="light"
                     >

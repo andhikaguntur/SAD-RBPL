@@ -15,8 +15,8 @@ export class DashboardController {
 
   async getUserStats(req: Request, res: Response) {
     try {
-      const { pelanggan } = req.params;
-      const data = await this.repository.getUserStats(pelanggan);
+      const { id } = req.params;
+      const data = await this.repository.getUserStats(id as string);
       res.json({ success: true, data });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

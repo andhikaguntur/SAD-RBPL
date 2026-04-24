@@ -58,7 +58,7 @@ export default function QuotationsPage() {
   const locale = useLocale();
   const { isAuthenticated, user } = useAuth();
   const t = useTranslations('Quotations');
-  
+
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>('pending');
   const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
@@ -76,13 +76,11 @@ export default function QuotationsPage() {
 
   const fetchQuotations = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/by-user/${user?.id}`);
       const json = await res.json();
       if (json.success) {
-        // Filter by user and map to local interface
-        const mapped = json.data
-          .filter((req: any) => req.pelanggan === user?.name)
-          .map((req: any) => ({
+        // Map to local interface
+        const mapped = json.data.map((req: any) => ({
             id: req.idPermintaan,
             ref: req.idPermintaan,
             machine: req.mesin?.[0]?.mesin?.namaMesin || 'Mesin',
@@ -112,19 +110,32 @@ export default function QuotationsPage() {
   if (!isAuthenticated) return null;
 
   const getStatusType = (status: string) => {
-    if (['Menunggu', 'Menunggu Validasi'].includes(status)) return 'pending';
-    if (['Menunggu Pembayaran', 'Lunas', 'Dikirim', 'Diterima'].includes(status)) return 'accepted';
+    if (['Menunggu', 'Menunggu Validasi', 'Divalidasi'].includes(status)) return 'pending';
+    if (['Menunggu Pembayaran', 'Lunas', 'Dikirim', 'Diterima', 'Disewa', 'Selesai'].includes(status)) return 'accepted';
     if (status === 'Ditolak') return 'rejected';
     return 'pending';
   };
 
   const getStatusColor = (status: string): string => {
-    const type = getStatusType(status);
-    switch (type) {
-      case 'pending': return 'yellow';
-      case 'accepted': return 'green';
-      case 'rejected': return 'red';
-      default: return 'blue';
+    switch (status) {
+      case 'Menunggu':
+      case 'Menunggu Validasi':
+        return 'yellow';
+      case 'Divalidasi':
+      case 'Menunggu Pembayaran':
+        return 'cyan';
+      case 'Lunas':
+      case 'Dikirim':
+        return 'blue';
+      case 'Diterima':
+      case 'Disewa':
+        return 'green';
+      case 'Selesai':
+        return 'gray';
+      case 'Ditolak':
+        return 'red';
+      default:
+        return 'blue';
     }
   };
 
@@ -308,8 +319,14 @@ export default function QuotationsPage() {
 
             {getStatusType(selectedQuote.status) === 'pending' && (
               <Group justify="flex-end" mt="xl">
-                <Button variant="outline" onClick={() => handleUpdateStatus(selectedQuote.id, 'Ditolak')}>Tolak</Button>
-                <Button onClick={() => handleUpdateStatus(selectedQuote.id, 'Menunggu Pembayaran')}>Terima & Lanjut ke Pembayaran</Button>
+                {['Menunggu', 'Menunggu Validasi'].includes(selectedQuote.status) ? (
+                  <Text size="sm" c="dimmed" fs="italic">Menunggu validasi harga dari admin...</Text>
+                ) : (
+                  <>
+                    <Button variant="outline" color="red" onClick={() => handleUpdateStatus(selectedQuote.id, 'Ditolak')}>Tolak</Button>
+                    <Button onClick={() => handleUpdateStatus(selectedQuote.id, 'Menunggu Pembayaran')}>Terima & Lanjut ke Pembayaran</Button>
+                  </>
+                )}
               </Group>
             )}
           </Stack>

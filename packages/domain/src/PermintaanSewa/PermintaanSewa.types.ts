@@ -11,6 +11,7 @@ export type PermintaanMesinType = {
 
 export type PermintaanSewaType = {
     idPermintaan: string
+    userId?: string
     pelanggan: string
     lokasi: string
     durasi: number

@@ -198,13 +198,22 @@ export default function ValidasiPembayaranUX() {
                   const isPending = p.status === 'Menunggu Validasi' || p.status === 'Menunggu';
                   return (
                     <Table.Tr key={p.id} style={{ opacity: isPending ? 1 : 0.6 }}>
-                      <Table.Td fw={700}>{p.id}</Table.Td>
+                      <Table.Td fw={700}>
+                        <Text fw={700}>INV-{p.id.substring(0, 8).toUpperCase()}</Text>
+                        <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>{p.id}</Text>
+                      </Table.Td>
                       <Table.Td fw={500}>{p.pelanggan}</Table.Td>
                       <Table.Td fw={700}>Rp {p.total.toLocaleString('id-ID')}</Table.Td>
                       <Table.Td>
                         <Badge 
                           variant={isPending ? 'filled' : 'light'} 
-                          color={p.status === 'Lunas' ? 'green' : p.status === 'Ditolak' ? 'red' : 'orange'}
+                          color={
+                            p.status === 'Lunas' ? 'green' : 
+                            p.status === 'Ditolak' ? 'red' : 
+                            p.status === 'Menunggu Validasi' ? 'blue' :
+                            p.status === 'Menunggu' ? 'yellow' :
+                            'orange'
+                          }
                         >
                           {p.status}
                         </Badge>
@@ -288,7 +297,7 @@ export default function ValidasiPembayaranUX() {
                         <SimpleGrid cols={2}>
                           <Box>
                             <Text size="xs" c="dimmed" fw={700}>ID INVOICE</Text>
-                            <Text fw={600}>{selectedPayment.id}</Text>
+                            <Text fw={600}>INV-{selectedPayment.id.substring(0, 8).toUpperCase()}</Text>
                           </Box>
                           <Box>
                             <Text size="xs" c="dimmed" fw={700}>TANGGAL INPUT</Text>
@@ -357,7 +366,7 @@ export default function ValidasiPembayaranUX() {
           <Stack align="center" gap="lg">
             <IconAlertTriangle size={60} />
             <Text fw={700} ta="center">
-              Status invoice {selectedPayment?.id} akan diubah menjadi {pendingAction}.
+              Status invoice INV-{selectedPayment?.id.substring(0, 8).toUpperCase()} akan diubah menjadi {pendingAction}.
             </Text>
             <Group grow w="100%">
               <Button variant="light" color="gray" onClick={closeConfirm} disabled={isProcessing}>Batal</Button>

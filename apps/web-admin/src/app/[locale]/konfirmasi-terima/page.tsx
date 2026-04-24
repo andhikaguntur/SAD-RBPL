@@ -129,7 +129,7 @@ export default function KonfirmasiPenerimaanInteraktif() {
       if (json.success) {
         notifications.show({
           title: 'Status Berhasil Diperbarui',
-          message: `Unit pada order ${selectedOrder.id} kini berstatus Disewa.`,
+          message: `Unit pada order SHIP-${selectedOrder.id.substring(0, 8).toUpperCase()} kini berstatus Disewa.`,
           color: 'green',
           icon: <IconCheck size={18} />,
         });
@@ -203,11 +203,11 @@ export default function KonfirmasiPenerimaanInteraktif() {
                   <Group justify="space-between">
                     <Group gap="xs">
                        <IconTruckDelivery size={18} color="var(--mantine-color-blue-6)" />
-                       <Text fw={800} size="sm">{d.id}</Text>
+                       <Text fw={800} size="sm">SHIP-{d.id.substring(0, 8).toUpperCase()}</Text>
                     </Group>
                     <Badge
                       variant="filled"
-                      color={d.status === 'Dikirim' ? 'orange' : 'green'}
+                      color={d.status === 'Dikirim' ? 'blue' : 'green'}
                       size="sm"
                     >
                       {d.status === 'Dikirim'
@@ -287,7 +287,7 @@ export default function KonfirmasiPenerimaanInteraktif() {
                     </ActionIcon>
                     <Box>
                       <Text fw={900} size="lg">Inspeksi Serah Terima</Text>
-                      <Text size="xs" c="dimmed">ID: {selectedOrder.id}</Text>
+                      <Text size="xs" c="dimmed">ID: SHIP-{selectedOrder.id.substring(0, 8).toUpperCase()}</Text>
                     </Box>
                   </Group>
                 </Group>

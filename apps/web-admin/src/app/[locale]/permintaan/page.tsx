@@ -69,6 +69,29 @@ export default function KonfirmasiPersetujuanHarga() {
     }
   };
 
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'Menunggu':
+      case 'Menunggu Validasi':
+        return 'yellow';
+      case 'Divalidasi':
+      case 'Menunggu Pembayaran':
+        return 'cyan';
+      case 'Lunas':
+      case 'Dikirim':
+        return 'blue';
+      case 'Diterima':
+      case 'Disewa':
+        return 'green';
+      case 'Selesai':
+        return 'gray';
+      case 'Ditolak':
+        return 'red';
+      default:
+        return 'blue';
+    }
+  };
+
   useEffect(() => {
     fetchAllPermintaan();
   }, []);
@@ -152,10 +175,10 @@ export default function KonfirmasiPersetujuanHarga() {
     });
   }, [dataPermintaan]);
 
-  const calcTotalReq = (items: PermintaanMesin[]) => {
+  const calcTotalReq = (items: PermintaanMesin[], durasi: number) => {
     return (items || []).reduce((acc, m) => {
       const net = Math.max(0, m.harga - m.diskon);
-      return acc + (net * m.qty);
+      return acc + (net * m.qty * (durasi || 1));
     }, 0);
   };
 
@@ -223,7 +246,7 @@ export default function KonfirmasiPersetujuanHarga() {
                         <Table.Td fw={900}>{req.idPermintaan}</Table.Td>
                         <Table.Td fw={600}>{req.pelanggan}</Table.Td>
                         <Table.Td>
-                          <Badge variant={isProcessed ? 'light' : 'filled'} color={isProcessed ? 'gray' : 'orange'} size="sm">
+                          <Badge variant={isProcessed ? 'light' : 'filled'} color={getStatusColor(req.status)} size="sm">
                             {req.status}
                           </Badge>
                         </Table.Td>
@@ -280,7 +303,7 @@ export default function KonfirmasiPersetujuanHarga() {
                                 <Stack gap={2} align="flex-end" px="xl">
                                   <Text size="xs" c="dimmed" fw={900} tt="uppercase">Estimasi Total Invoice</Text>
                                   <Text fw={900} size="28px" c="blue.9" style={{ lineHeight: 1 }}>
-                                    Rp {calcTotalReq(req.mesin).toLocaleString('id-ID')}
+                                    Rp {calcTotalReq(req.mesin, req.durasi).toLocaleString('id-ID')}
                                   </Text>
                                 </Stack>
                                 {!isProcessed && (
