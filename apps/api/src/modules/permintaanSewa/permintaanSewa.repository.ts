@@ -104,7 +104,7 @@ export class PermintaanRepository {
             include: { mesin: { include: { mesin: true } } }
         });
 
-        return data.map(d => this.mapToType(d));
+        return data.map((d: any) => this.mapToType(d));
     }
 
     async findArchive(): Promise<PermintaanSewaType[]> {
@@ -112,7 +112,7 @@ export class PermintaanRepository {
             where: { status: { in: ['Lunas', 'Dikirim', 'Diterima', 'Selesai'] } },
             include: { mesin: { include: { mesin: true } } }
         });
-        return data.map(d => this.mapToType(d));
+        return data.map((d: any) => this.mapToType(d));
     }
 
     async findDispatchQueue(): Promise<PermintaanSewaType[]> {
@@ -120,7 +120,7 @@ export class PermintaanRepository {
             where: { status: 'Lunas' },
             include: { mesin: { include: { mesin: true } } }
         });
-        return data.map(d => this.mapToType(d));
+        return data.map((d: any) => this.mapToType(d));
     }
 
     async findByUserId(userId: string): Promise<PermintaanSewaType[]> {
@@ -128,7 +128,7 @@ export class PermintaanRepository {
             where: { userId },
             include: { mesin: { include: { mesin: true } } }
         });
-        return data.map(d => this.mapToType(d));
+        return data.map((d: any) => this.mapToType(d));
     }
 
     async findByPelanggan(pelanggan: string): Promise<PermintaanSewaType[]> {
@@ -136,7 +136,7 @@ export class PermintaanRepository {
             where: { pelanggan },
             include: { mesin: { include: { mesin: true } } }
         });
-        return data.map(d => this.mapToType(d));
+        return data.map((d: any) => this.mapToType(d));
     }
 
     private mapToType(d: any): PermintaanSewaType {
