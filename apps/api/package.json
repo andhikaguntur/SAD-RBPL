@@ -4,7 +4,7 @@
   "description": "REST API handling authentication, business logic, and data persistence. REST API service for user, manager, and admin applications",
   "scripts": {
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/index.ts",
-    "build": "tsc",
+    "build": "npx prisma generate && tsc",
     "start": "node dist/index.ts",
     "typecheck": "tsc --noEmit",
     "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",

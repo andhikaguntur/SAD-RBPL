@@ -24,7 +24,7 @@ export class PermintaanRepository {
             lokasi: data.lokasi,
             status: data.status,
             tanggalFormat: data.tanggalFormat,
-            mesin: data.mesin.map(m => ({
+            mesin: data.mesin.map((m: any) => ({
                 idPermintaan: m.idPermintaan,
                 idMesin: m.idMesin,
                 qty: m.qty,
@@ -37,7 +37,7 @@ export class PermintaanRepository {
 
     async save(data: PermintaanSewaType): Promise<PermintaanSewaType> {
         // Because updates to nested machines require atomic tx, we delete children and recreate
-        const saved = await prisma.$transaction(async (tx) => {
+        const saved = await prisma.$transaction(async (tx: any) => {
             const id = data.idPermintaan || 'new';
             const existing = await tx.permintaanSewa.findUnique({ where: { idPermintaan: id } });
 

@@ -109,7 +109,7 @@ export class PengirimanRepository {
       where: { permintaan: { pelanggan } },
       include: { permintaan: true }
     });
-    return data.map(d => ({
+    return data.map((d: any) => ({
       id: d.id,
       idPermintaan: d.idPermintaan,
       tanggalKirim: d.tanggalKirim,
@@ -125,7 +125,7 @@ export class PengirimanRepository {
       where: { permintaan: { userId } },
       include: { permintaan: true }
     });
-    return data.map(d => ({
+    return data.map((d: any) => ({
       id: d.id,
       idPermintaan: d.idPermintaan,
       tanggalKirim: d.tanggalKirim,

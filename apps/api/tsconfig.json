@@ -3,6 +3,8 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"module": "CommonJS",
+		"strict": false,
+		"noImplicitAny": false,
 		"types": [
 			"node"
 		]
