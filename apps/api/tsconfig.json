@@ -1,12 +1,18 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"outDir": "dist"
+		"outDir": "dist",
+		"module": "CommonJS",
+		"types": [
+			"node"
+		]
 	},
-	"include": ["src"],
+	"include": [
+		"src"
+	],
 	"references": [
 		{
-			"path": "../../packages/shared"
+			"path": "../../packages/domain"
 		}
 	]
 }

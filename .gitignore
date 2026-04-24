@@ -51,3 +51,4 @@ coverage/
 # Optional: output from Turbo repo caching
 .cache/
 .turbo/
+.github/
