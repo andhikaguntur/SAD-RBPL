@@ -114,7 +114,7 @@ export default function MinimalistExecutiveDashboard() {
                   key={t.id}
                   status={t.status} 
                   msg={`${t.id}: ${t.pelanggan}`} 
-                  time={`Rp ${t.nominal.toLocaleString('id-ID')}`} 
+                  time={`Rp ${(t.nominal || 0).toLocaleString('id-ID')}`} 
                   dotColor={
                     t.status === 'Lunas' ? 'green' : 
                     t.status === 'Ditolak' ? 'red' :

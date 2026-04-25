@@ -85,7 +85,7 @@ export default function QuotationsPage() {
             ref: req.idPermintaan,
             machine: req.mesin?.[0]?.mesin?.namaMesin || 'Mesin',
             duration: req.durasi,
-            totalPrice: req.mesin?.reduce((acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty, 0) || 0,
+            totalPrice: req.mesin?.reduce((acc: number, m: any) => acc + (m.harga - m.diskon) * m.qty * (req.durasi || 1), 0) || 0,
             status: req.status,
             createdDate: req.tanggalFormat,
             expiryDate: 'TBA', // Backend doesn't have this yet
@@ -307,8 +307,12 @@ export default function QuotationsPage() {
 
             <Stack gap="xs">
               <Group justify="space-between">
-                <Text>Harga Sewa</Text>
-                <Text fw={600}>Rp {selectedQuote.details.dailyRate.toLocaleString('id-ID')}</Text>
+                <Text>Harga Sewa (Harian)</Text>
+                <Text fw={600}>Rp {(selectedQuote.details.dailyRate || 0).toLocaleString('id-ID')}</Text>
+              </Group>
+              <Group justify="space-between">
+                <Text>Durasi Sewa</Text>
+                <Text fw={600}>{selectedQuote.duration} Hari</Text>
               </Group>
               <Divider />
               <Group justify="space-between">

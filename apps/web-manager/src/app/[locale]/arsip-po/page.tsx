@@ -216,7 +216,7 @@ export default function PurchaseOrderArchive() {
                     <Text fw={700} size="sm">{po.client}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text fw={800} size="sm">Rp {po.total.toLocaleString('id-ID')}</Text>
+                    <Text fw={800} size="sm">Rp {(po.total || 0).toLocaleString('id-ID')}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Badge 
@@ -269,7 +269,7 @@ export default function PurchaseOrderArchive() {
             <SimpleGrid cols={3}>
               <Paper withBorder p="md" radius="sm" bg="gray.0">
                 <Text size="xs" fw={800} c="dimmed">TOTAL TAGIHAN</Text>
-                <Text fw={900} size="xl">Rp {selectedPO.total.toLocaleString('id-ID')}</Text>
+                <Text fw={900} size="xl">Rp {(selectedPO.total || 0).toLocaleString('id-ID')}</Text>
               </Paper>
               <Paper withBorder p="md" radius="sm" bg="gray.0">
                 <Text size="xs" fw={800} c="dimmed">TANGGAL PO</Text>
@@ -305,10 +305,10 @@ export default function PurchaseOrderArchive() {
                       <Text size="xs">{item.qty} Unit</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="xs">Rp {item.price.toLocaleString('id-ID')}</Text>
+                      <Text size="xs">Rp {(item.price || 0).toLocaleString('id-ID')}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="xs" fw={800}>Rp {item.subtotal.toLocaleString('id-ID')}</Text>
+                      <Text size="xs" fw={800}>Rp {(item.subtotal || 0).toLocaleString('id-ID')}</Text>
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -329,7 +329,7 @@ export default function PurchaseOrderArchive() {
                       <Text size="xs" fw={800}>Status Pembayaran: {selectedPO.status}</Text>
                       <Text size="10px" c="dimmed">Validated by System</Text>
                     </Box>
-                    <Text fw={800} size="sm">Rp {selectedPO.total.toLocaleString('id-ID')}</Text>
+                    <Text fw={800} size="sm">Rp {(selectedPO.total || 0).toLocaleString('id-ID')}</Text>
                   </Group>
                 </Paper>
               </Stack>

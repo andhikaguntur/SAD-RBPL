@@ -26,7 +26,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
             
             {/* Area Header Kanan bisa untuk profil/notifikasi nanti */}
             <Group hiddenFrom="xs">
-                <Text size="xs" fw={700} c="dimmed">ADMIN APP</Text>
+                <Text size="xs" fw={700} c="dimmed">MANAGER APP</Text>
             </Group>
         </Group>
       </AppShell.Header>
