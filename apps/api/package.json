@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/index.ts",
     "build": "npx prisma generate && tsc",
-    "start": "node dist/index.ts",
+    "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "lint": "eslint ."
