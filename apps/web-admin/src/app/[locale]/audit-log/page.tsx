@@ -38,7 +38,7 @@ export default function AuditLogSystem() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/audit-log');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/audit-log`);
       const json = await res.json();
       if (json.success) {
         setLogs(json.data.map((l: any) => {

@@ -44,7 +44,7 @@ export default function KonfirmasiPenerimaanInteraktif() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/pengiriman');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pengiriman`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
@@ -117,7 +117,7 @@ export default function KonfirmasiPenerimaanInteraktif() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/pengiriman/${selectedOrder.id}/status`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pengiriman/${selectedOrder.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Disewa' })

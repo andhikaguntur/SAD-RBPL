@@ -35,7 +35,8 @@ app.get("/api/logs", auditLogController.getAll.bind(auditLogController) as any);
 app.get("/api/reports", permintaanController.getReports.bind(permintaanController) as any);
 app.get("/api/delivery-tracks", pengirimanController.getDeliveryTracks.bind(pengirimanController) as any);
 
-app.listen(4000, () => {
-  console.log("Backend running at http://localhost:4000");
+const port = process.env.PORT || 4000;
+app.listen(port, () => {
+  console.log(`Backend running at http://localhost:${port}`);
 });
 // Trigger restart

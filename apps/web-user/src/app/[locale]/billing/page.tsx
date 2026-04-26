@@ -60,7 +60,7 @@ export default function BillingPage() {
   const fetchInvoices = async () => {
     if (!user?.name) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/pembayaran/by-user/${user?.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pembayaran/by-user/${user?.id}`);
       const json = await res.json();
       if (json.success) {
         const mapped = (json.data as any[]).map((p: any) => ({
@@ -97,7 +97,7 @@ export default function BillingPage() {
       const b64 = await fileToBase64(compressed);
       setProgress(70);
 
-      const res = await fetch(`http://localhost:4000/api/pembayaran/${active.id}/proof`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pembayaran/${active.id}/proof`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bukti: b64 }),

@@ -40,7 +40,7 @@ export default function StaffActivityLog() {
   useEffect(() => {
     const fetchActivityLogs = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/logs');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/logs`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         

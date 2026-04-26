@@ -18,7 +18,7 @@ export default function MinimalistExecutiveDashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/dashboard/stats');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/dashboard/stats`);
       if (!res.ok) throw new Error('Gagal memuat statistik dashboard');
       const json = await res.json();
       if (json.success) {

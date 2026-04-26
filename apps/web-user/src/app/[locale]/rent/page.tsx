@@ -84,7 +84,7 @@ export default function RentPage() {
 
   const fetchMachines = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/mesin');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/mesin`);
       const json = await res.json();
       if (json.success) {
         // Only show available machines
@@ -125,7 +125,7 @@ export default function RentPage() {
     const machine = summary().machine;
     
     try {
-      const res = await fetch('http://localhost:4000/api/permintaan-sewa', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

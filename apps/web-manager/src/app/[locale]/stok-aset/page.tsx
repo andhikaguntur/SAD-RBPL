@@ -37,7 +37,7 @@ export default function StockAsetManagerPage() {
   useEffect(() => {
     const fetchMachines = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/mesin');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/mesin`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         

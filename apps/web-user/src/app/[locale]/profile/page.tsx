@@ -64,7 +64,7 @@ export default function ProfilePage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/dashboard/user/${user?.name || 'User'}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/dashboard/user/${user?.name || 'User'}`);
       const json = await res.json();
       if (json.success) setStats(json.data);
     } catch (err) {

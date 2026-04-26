@@ -35,7 +35,7 @@ export default function LaporanManagerProduction() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/reports');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/reports`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         setReports(result.data || []);
@@ -59,7 +59,7 @@ export default function LaporanManagerProduction() {
     setIsExporting(true);
     
     try {
-      const response = await fetch('http://localhost:4000/api/reports/export-pdf', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/reports/export-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ search, reports: filteredReports })
@@ -88,7 +88,7 @@ export default function LaporanManagerProduction() {
     setIsExporting(true);
     
     try {
-      const response = await fetch('http://localhost:4000/api/reports/export-excel', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/reports/export-excel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ search, reports: filteredReports })

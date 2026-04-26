@@ -53,7 +53,7 @@ export default function LogisticsCommandCenterV2() {
   useEffect(() => {
     const fetchDispatchQueue = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/dispatch-queue');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/dispatch-queue`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         
@@ -124,7 +124,7 @@ export default function LogisticsCommandCenterV2() {
       };
 
       // TO DO : Fix the API create / update -- It should be create tho..
-      const response = await fetch(`http://localhost:4000/api/pengiriman`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pengiriman`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

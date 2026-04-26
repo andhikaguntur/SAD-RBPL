@@ -42,7 +42,7 @@ export default function FleetMonitoringProduction() {
   useEffect(() => {
     const fetchDeliveryTracks = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/delivery-tracks');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/delivery-tracks`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         setDeliveryTracks(result.data || []);

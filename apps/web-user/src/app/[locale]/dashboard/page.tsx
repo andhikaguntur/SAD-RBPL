@@ -69,8 +69,8 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       const [statsRes, deliveriesRes] = await Promise.all([
-        fetch(`http://localhost:4000/api/dashboard/user/${user?.id || 'User'}`),
-        fetch(`http://localhost:4000/api/pengiriman/by-user/${user?.id || ''}`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/dashboard/user/${user?.id || 'User'}`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pengiriman/by-user/${user?.id || ''}`),
       ]);
       const statsJson = await statsRes.json();
       const deliveriesJson = await deliveriesRes.json();

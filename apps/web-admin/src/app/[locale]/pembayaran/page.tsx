@@ -42,7 +42,7 @@ export default function ValidasiPembayaranUX() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/pembayaran');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pembayaran`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
@@ -121,7 +121,7 @@ export default function ValidasiPembayaranUX() {
 
     setIsProcessing(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/pembayaran/${selectedPayment.id}/status`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pembayaran/${selectedPayment.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -36,7 +36,7 @@ export default function PurchaseOrderArchive() {
   useEffect(() => {
     const fetchPoArchives = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/po-archive');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/po-archive`);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const result = await response.json();
         
@@ -81,7 +81,7 @@ export default function PurchaseOrderArchive() {
 
   const handleDownloadPDF = async (poId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/download-pdf`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/po-archive/${poId}/download-pdf`, {
         method: 'POST'
       });
 
@@ -104,7 +104,7 @@ export default function PurchaseOrderArchive() {
 
   const handlePrintInvoice = async (poId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/print-invoice`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/po-archive/${poId}/print-invoice`, {
         method: 'POST'
       });
 
@@ -127,7 +127,7 @@ export default function PurchaseOrderArchive() {
 
   const handleViewTimeline = async (poId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/po-archive/${poId}/timeline`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/po-archive/${poId}/timeline`);
       if (!response.ok) throw new Error(`API error: ${response.status}`);
       const result = await response.json();
       

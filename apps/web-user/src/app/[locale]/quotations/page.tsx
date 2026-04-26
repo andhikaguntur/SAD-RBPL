@@ -76,7 +76,7 @@ export default function QuotationsPage() {
 
   const fetchQuotations = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/by-user/${user?.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa/by-user/${user?.id}`);
       const json = await res.json();
       if (json.success) {
         // Map to local interface
@@ -142,7 +142,7 @@ export default function QuotationsPage() {
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     setIsActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })

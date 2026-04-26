@@ -39,7 +39,7 @@ export default function KonfirmasiPersetujuanHarga() {
   const fetchAllPermintaan = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
@@ -131,7 +131,7 @@ export default function KonfirmasiPersetujuanHarga() {
         }))
       };
 
-      const res = await fetch(`http://localhost:4000/api/permintaan-sewa/${activeReqId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa/${activeReqId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

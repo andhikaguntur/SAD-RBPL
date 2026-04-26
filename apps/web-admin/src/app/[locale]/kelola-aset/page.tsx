@@ -30,7 +30,7 @@ export default function FleetInventorySAD() {
     setIsInitialLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:4000/api/mesin");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/mesin`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
@@ -82,7 +82,7 @@ export default function FleetInventorySAD() {
     
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/mesin/${selectedUnit.id}/status`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/mesin/${selectedUnit.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })

@@ -45,7 +45,7 @@ export default function ArsipPurchaseOrderPro() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/permintaan-sewa');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/permintaan-sewa`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {

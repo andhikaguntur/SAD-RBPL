@@ -26,7 +26,7 @@ export default function AdministrativeDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/api/dashboard/stats');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/dashboard/stats`);
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
