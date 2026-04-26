@@ -1,4 +1,4 @@
-import { mesinType, StatusMesin } from "@domain/Mesin/mesin.types";
+import { mesinType, StatusMesin } from "@sad-rbpl/domain/Mesin/mesin.types";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({

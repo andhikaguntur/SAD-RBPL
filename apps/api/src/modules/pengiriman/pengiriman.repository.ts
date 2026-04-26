@@ -1,4 +1,4 @@
-import { PengirimanType } from "@domain/Pengiriman/Pengiriman.types";
+import { PengirimanType } from "@sad-rbpl/domain/Pengiriman/Pengiriman.types";
 import { PrismaClient } from "@prisma/client";
 import { AuditLogRepository } from "../auditLog/auditLog.repository";
 

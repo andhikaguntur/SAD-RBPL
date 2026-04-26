@@ -1,4 +1,4 @@
-import { PermintaanSewaType, StatusPermintaan } from "@domain/PermintaanSewa/PermintaanSewa.types"
+import { PermintaanSewaType, StatusPermintaan } from "@sad-rbpl/domain/PermintaanSewa/PermintaanSewa.types"
 import { PrismaClient } from "@prisma/client"
 import { AuditLogRepository } from "../auditLog/auditLog.repository"
 

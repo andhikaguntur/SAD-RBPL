@@ -16,7 +16,7 @@
 			"node"
 		],
 		"paths": {
-			"@domain/*": [
+			"@sad-rbpl/domain/*": [
 				"packages/domain/src/*"
 			],
 			"@contract/*": [

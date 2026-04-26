@@ -1,6 +1,6 @@
 import { PermintaanRepository } from "./permintaanSewa.repository"
-import { PermintaanSewa } from "@domain/PermintaanSewa/PermintaanSewa"
-import { PenawaranHarga } from "@domain/PenawaranHarga/PenawaranHarga"
+import { PermintaanSewa } from "@sad-rbpl/domain/PermintaanSewa/PermintaanSewa"
+import { PenawaranHarga } from "@sad-rbpl/domain/PenawaranHarga/PenawaranHarga"
 
 export class PermintaanService {
 

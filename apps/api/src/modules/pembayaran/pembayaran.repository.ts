@@ -1,4 +1,4 @@
-import { PembayaranType } from "@domain/Pembayaran/Pembayaran.types";
+import { PembayaranType } from "@sad-rbpl/domain/Pembayaran/Pembayaran.types";
 import { PrismaClient } from "@prisma/client";
 import { AuditLogRepository } from "../auditLog/auditLog.repository";
 
