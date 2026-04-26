@@ -22,6 +22,7 @@
     "express": "^5.1.0",
     "mongoose": "^8.13.2",
     "pg": "^8.20.0",
+    "@domain": "workspace:domain-logic",
     "shared": "workspace:*"
   },
   "devDependencies": {

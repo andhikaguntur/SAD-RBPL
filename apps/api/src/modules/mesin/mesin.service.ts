@@ -3,7 +3,7 @@ import { StatusMesin } from "@domain/Mesin/mesin.types";
 import { MesinRepository } from "./mesin.repository";
 
 export class MesinService {
-  constructor(private readonly mesinRepository = new MesinRepository()) {}
+  constructor(private readonly mesinRepository = new MesinRepository()) { }
 
   async ubahStatusMesin(idMesin: string, statusBaru: StatusMesin) {
     const data = await this.mesinRepository.findById(idMesin);

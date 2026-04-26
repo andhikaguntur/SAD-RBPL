@@ -165,29 +165,29 @@ export class PembayaranRepository {
   }
 
   async updateStatusWithSync(id: string, status: 'Lunas' | 'Ditolak') {
-  return await prisma.$transaction(async (tx) => {
-    
-    const pembayaran = await tx.pembayaran.update({
-      where: { id },
-      data: { status }
-    });
+    return await prisma.$transaction(async (tx) => {
 
-    if (status === 'Lunas') {
-      await tx.permintaanSewa.update({
-        where: { idPermintaan: pembayaran.idPermintaan },
-        data: { status: 'Lunas' }
+      const pembayaran = await tx.pembayaran.update({
+        where: { id },
+        data: { status }
       });
-    }
 
-    // Audit Log
-    await this.auditLog.create({
-      entitasTarget: 'Pembayaran',
-      idTarget: pembayaran.id,
-      aksi: 'UPDATE_STATUS',
-      keterangan: `Pembayaran ${pembayaran.id} dikonfirmasi: ${status}`
+      if (status === 'Lunas') {
+        await tx.permintaanSewa.update({
+          where: { idPermintaan: pembayaran.idPermintaan },
+          data: { status: 'Lunas' }
+        });
+      }
+
+      // Audit Log
+      await this.auditLog.create({
+        entitasTarget: 'Pembayaran',
+        idTarget: pembayaran.id,
+        aksi: 'UPDATE_STATUS',
+        keterangan: `Pembayaran ${pembayaran.id} dikonfirmasi: ${status}`
+      });
+
+      return pembayaran;
     });
-
-    return pembayaran;
-  });
-}
+  }
 }

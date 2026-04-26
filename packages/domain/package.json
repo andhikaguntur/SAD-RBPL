@@ -1,10 +1,13 @@
 {
-  "name": "shared",
+  "name": "domain-logic",
   "version": "1.0.0",
   "private": true,
-  "description": "Shared types and utilities for SAD diesel machine booking platform",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "Domain logic for SAD diesel machine booking platform",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    "./*": "./dist/src/*.js"
+  },
   "files": [
     "dist"
   ],
